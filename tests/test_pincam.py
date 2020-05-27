@@ -364,7 +364,7 @@ def test_surface_normal():
         [0, 0, -1], cam._surface_normal(srf2))
 
 
-def test_simple_in_view_hemisphere():
+def test_simple_view_factor():
     # Test view of simple vertical plane with no rotation
     srf = np.array([
         [-5, 0, 0], [5, 0, 0], [5, 0, 10], [-5, 0, 10]
@@ -374,13 +374,13 @@ def test_simple_in_view_hemisphere():
     heading = 0
     pitch = 0
     cam_posn = np.array([0, -10, 5])
-    P, Rt = cam.projection_matrix(fov, 2, heading, pitch, cam_posn.copy())
+    P, Rtc = cam.projection_matrix(fov, 2, heading, pitch, cam_posn.copy())
 
-    in_view = cam._in_view_hemisphere(Rt, cam_posn, srf)
-    assert in_view == True
+    view_factor = cam.view_factor(Rtc, srf) > 0.0
+    assert view_factor == True
 
-    in_view = cam._in_view_hemisphere(Rt, cam_posn, srf[::-1])
-    assert in_view == False
+    view_factor = cam.view_factor(Rtc, srf[::-1]) > 0.0
+    assert view_factor == False
 
     # Test view of simple horizontal plane with no rotation
     srf = np.array([
@@ -391,16 +391,16 @@ def test_simple_in_view_hemisphere():
     heading = 0
     pitch = 0
     cam_posn = np.array([0, -10, 5])
-    P, Rt = cam.projection_matrix(fov, 2, heading, pitch, cam_posn.copy())
+    P, Rtc = cam.projection_matrix(fov, 2, heading, pitch, cam_posn.copy())
     # Should be exactly perpendicular
-    in_view = cam._in_view_hemisphere(Rt, cam_posn, srf)
-    assert in_view == True
+    view_factor = cam.view_factor(Rtc, srf) > 0.0
+    assert view_factor == True
 
-    in_view = cam._in_view_hemisphere(Rt, cam_posn, srf[::-1])
-    assert in_view == False
+    view_factor = cam.view_factor(Rtc, srf[::-1]) > 0.0
+    assert view_factor == False
 
 
-def test_complex_in_view_hemisphere():
+def test_complex_view_factor():
     # Check view_hemisphere for each geoms
     bot_srf = np.array([
         [-5, -5, 0], [5, -5, 0], [5, 5, 0], [-5, 5, 0]
@@ -418,44 +418,44 @@ def test_complex_in_view_hemisphere():
     cam_posn = np.array([0, -15, 7])
     P, Rtc = cam.projection_matrix(fov, 2, heading, pitch, cam_posn.copy())
 
-    in_view = cam._in_view_hemisphere(Rtc, cam_posn, bot_srf)
-    assert in_view == True
+    view_factor = cam.view_factor(P, bot_srf) > 0.0
+    assert view_factor == True
 
-    in_view = cam._in_view_hemisphere(Rtc, cam_posn, bot_srf[::-1])
-    assert in_view == False
+    view_factor = cam.view_factor(P, bot_srf[::-1]) > 0.0
+    assert view_factor == False
 
     # Look at top surface
-    in_view = cam._in_view_hemisphere(Rtc, cam_posn, top_srf)
-    assert in_view == False
+    view_factor = cam.view_factor(P, top_srf) > 0.0
+    assert view_factor == False
 
-    in_view = cam._in_view_hemisphere(Rtc, cam_posn, top_srf[::-1])
-    assert in_view == True
+    view_factor = cam.view_factor(P, top_srf[::-1]) > 0.0
+    assert view_factor == True
 
     # Look at underside of bottom surface
     pitch = r(-55)
     P, Rtc = cam.projection_matrix(fov, 2, heading, pitch, cam_posn.copy())
 
-    in_view = cam._in_view_hemisphere(Rtc, cam_posn, bot_srf)
-    assert in_view == False
+    view_factor = cam.view_factor(P, bot_srf) > 0.0
+    assert view_factor == False
 
-    in_view = cam._in_view_hemisphere(Rtc, cam_posn, bot_srf[::-1])
-    assert in_view == True
+    view_factor = cam.view_factor(P, bot_srf[::-1]) > 0.0
+    assert view_factor == True
 
     # P matrix see inner face of bottom and top faces
     pitch = r(35)
     P, Rtc = cam.projection_matrix(fov, 2, heading, pitch, cam_posn.copy())
 
-    in_view = cam._in_view_hemisphere(Rtc, cam_posn, bot_srf)
-    assert in_view == True
+    view_factor = cam.view_factor(P, bot_srf) > 0.0
+    assert view_factor == True
 
-    in_view = cam._in_view_hemisphere(Rtc, cam_posn, bot_srf[::-1])
-    assert in_view == False
+    view_factor = cam.view_factor(P, bot_srf[::-1]) > 0.0
+    assert view_factor == False
 
-    in_view = cam._in_view_hemisphere(Rtc, cam_posn, top_srf)
-    assert in_view == True
+    view_factor = cam.view_factor(P, top_srf) > 0.0
+    assert view_factor == True
 
-    in_view = cam._in_view_hemisphere(Rtc, cam_posn, top_srf[::-1])
-    assert in_view == False
+    view_factor = cam.view_factor(P, top_srf[::-1]) > 0.0
+    assert view_factor == False
 
 
 if __name__ == "__main__":
@@ -470,5 +470,5 @@ if __name__ == "__main__":
     #test_zbuffer()
     test_bounding_box()
     test_surface_normal()
-    test_simple_in_view_hemisphere()
-    test_complex_in_view_hemisphere()
+    test_simple_view_factor()
+    test_complex_view_factor()

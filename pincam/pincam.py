@@ -183,33 +183,30 @@ def _surface_normal(surface):
     vec1 = surface[1] - surface[0]
     vec2 = surface[2] - surface[1]
 
-    norm = np.cross(vec1, vec2)
-    return norm / np.linalg.norm(norm)
+    normal = np.cross(vec1, vec2)
+
+    if np.abs(np.sum(normal)) < 1e-10:
+        return False
+
+    return normal / np.linalg.norm(normal)
 
 
-def in_view_hemisphere(Rt, cam_posn, surface):
+def view_factor(P, surface):
     """
     Returns boolean corresponding to if top, bottom bounding box is within
     view hemisphere.
 
-    This is based on back-face culling formula:
-    (Vo - P) * N >= 0
-
-    where:
-    V0 = Surface vertice
-    P = Camera position
-    N = Surface normal
+    view_factor = view_factor > 0.0
 
     """
     # Camera coordinates in world coordinates
-    P = np.array([0, 1, 0]) #cam_posn
-    R = Rt
+    cam_point = np.array([0, 1, 0]) #cam_posn
 
     # TODO: Convert this into a geometry to view_frustrum method
     # TODO: insert view_frustrum method in p2e
 
     wmtx = camera_to_world_matrix()
-    xsurface = np.matmul(R, e2p(surface))
+    xsurface = np.matmul(P, e2p(surface))
     w = xsurface[2, :]
     xsurface = (xsurface / w).T # squish x,y into camera view frustrum
     xsurface[:,2] = w
@@ -217,15 +214,14 @@ def in_view_hemisphere(Rt, cam_posn, surface):
     # Convert back to world coordinates
     xsurface = np.matmul(wmtx, xsurface.T).T
     xsurface = xsurface[:,:3]
-
     #V0 = surface[0]
     N = _surface_normal(xsurface)
-    #in_view = not np.dot(V0 - P, N) >= 0.0
-
-    view_factor = np.dot(-P, N)
-    in_view = view_factor > 0.0
-
-    return in_view, view_factor
+    #view_factor = not np.dot(V0 - P, N) >= 0.0
+    if isinstance(N, np.ndarray):
+        return np.dot(-cam_point, N)
+    else:
+        print('bbox fail for:', surface)
+        return 1.0
 
 
 def _view_bounding_extents(P, cam_posn, geometries):
@@ -235,14 +231,18 @@ def _view_bounding_extents(P, cam_posn, geometries):
     srfs = _bounding_box(flattened_geometries)
     # Since bounding box orients normals towards outside of box, flip surfaces
     srf_bot, srf_top = srfs[0][::-1], srfs[1][::-1]
-    # Check if inside bbox faces can be seen by camera
-    view_bot, view_bot_factor = in_view_hemisphere(P, cam_posn, srf_bot)
-    view_top, view_top_factor = in_view_hemisphere(P, cam_posn, srf_top)
+    #print(srf_bot, srf_top)
 
+    # Check if inside bbox faces can be seen by camera
+    view_bot_factor = view_factor(P, srf_bot)
+    view_bot = view_bot_factor > 0.0
+    view_top_factor = view_factor(P, srf_top)
+    view_top = view_top_factor > 0.0
+    #print('--')
     return (view_bot, view_top), (view_bot_factor, view_top_factor)
 
 
-def project_by_z(P, cam_posn, geometries, orth=False):
+def project_by_z(P, Rtc, cam_posn, geometries, orth=False):
 
     def _helper_project(P, cam_posn, _grouped_by_z):
         # Project
@@ -260,7 +260,7 @@ def project_by_z(P, cam_posn, geometries, orth=False):
     grouped_by_z, _ = mu.groupby(np.array([geometries, zlst]).T,
                                  tol=1e-10, axis_lambda=foo)
 
-    view_data = _view_bounding_extents(P, cam_posn, geometries)
+    view_data = _view_bounding_extents(Rtc, cam_posn, geometries)
     view_bot, view_top = view_data[0]
     view_bot_factor, view_top_factor = view_data[1]
 
@@ -272,9 +272,12 @@ def project_by_z(P, cam_posn, geometries, orth=False):
         t, b, c = [], [], []
         for geoms in grouped_by_z:
             _geoms = geoms.T[0]
-            #geoms = [np.array([[geom], 0]) for geom in geoms.T[0]]
-            _view, _ = _view_bounding_extents(P, cam_posn, _geoms)
-            _view_top, _view_bot = _view
+            _view, _viewf = _view_bounding_extents(P, cam_posn, _geoms)
+            _view_bot, _view_top = _view
+            #print(geoms)
+            #print(_view_bot, _view_top)
+            #print(_viewf)
+            #print('--')
             #pgeoms = _helper_project(P, cam_posn, geoms)
             #proj_geoms.extend(pgeoms)
             if _view_top and _view_bot:
