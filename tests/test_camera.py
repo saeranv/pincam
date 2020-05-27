@@ -2,8 +2,8 @@ import pytest
 from pprint import pprint as pp
 
 import numpy as np
-from pml import camera4 as cam
-from pml.matrix_utils2 import MatrixUtils2 as mu
+from pincam import pincam as cam
+from pincam.matrix_utils2 import MatrixUtils2 as mu
 
 
 def r(d):
