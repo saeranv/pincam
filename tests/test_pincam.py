@@ -349,6 +349,24 @@ def test_bounding_box():
     assert np.allclose(bbox, chk_bbox, atol=1e-10)
 
 
+def test_single_plane_bounding_box():
+    # Test bounding box when you get one surface
+    ptmtx = np.array(
+        [[-4, 0, 0], [4, 0, 0], [4, 0, 6], [0, 0, 10], [-4, 0, 6]]
+    )
+
+    bot, top = cam._bounding_box(ptmtx)
+
+    # Single line
+    # np.array(
+    #     [[-4,  0,  0],
+    #      [ 4,  0,  0],
+    #      [ 4,  0,  0],
+    #      [-4, 0, 0]]
+    # )
+
+    assert False
+
 def test_surface_normal():
     # Test surface normal from ccw surface
     srf1 = np.array([
@@ -458,6 +476,59 @@ def test_complex_view_factor():
     assert view_factor == False
 
 
+def test_simple_snapshot():
+    # Test projection of three simple surfaces
+
+    # Define surfaces
+    bot_srf = np.array(
+        [[-5, -5, 0], [5, -5, 0], [5, 5, 0], [-5, 5, 0]]
+        )
+    top_srf = np.array(
+        [[-5, -5, 10], [5, -5, 10], [5, 5, 10], [-5, 5, 10]]
+        )
+    vrt_srf = np.array(
+        [[-4, 0, 0], [4, 0, 0], [4, 0, 6], [0, 0, 10], [-4, 0, 6]]
+        )
+    geoms = [vrt_srf, top_srf, bot_srf]
+
+    # Set camera parameters
+    fov = r(35)
+    heading = r(15)
+    pitch = r(25)
+    cam_posn = np.array([0, -35, 4])
+    P, Rtc = cam.projection_matrix(fov, 5, heading, pitch, cam_posn)
+    xgeoms = cam.project_by_z(P, P, cam_posn, geoms, False)
+
+
+    # Define the xgeoms we should get, in correct order
+    chk_xgeoms = [
+        np.array(
+            [[ 19.42634176, -36.19840711],
+             [-31.16510699, -27.96121033],
+             [-14.10866749,  -5.63464271],
+             [25.93732709, -10.61351528]]
+        ),
+        np.array(
+            [[ 18.35518671, -21.081233  ],
+             [-17.39674995, -16.04042901],
+             [-18.71740002,   9.08509537],
+             [  0.        ,  26.62286934],
+             [19.83153656, 5.13442237]]
+        ),
+        np.array(
+            [[ 22.68117026,  15.87814324],
+             [-35.9424611 ,  20.94720835],
+             [-15.75017557,  34.08418287],
+             [29.16340163, 31.22805151]]
+        )
+    ]
+
+
+    # Assert
+    for xgeom, chk_xgeom in zip(xgeoms, chk_xgeoms):
+        assert np.allclose(xgeom, chk_xgeom, atol=1e-10)
+
+
 if __name__ == "__main__":
     test_basic_transform()
     test_rotation_transform()
@@ -469,6 +540,9 @@ if __name__ == "__main__":
     #test_perspective_projection_transform()
     #test_zbuffer()
     test_bounding_box()
+    #test_single_plane_bounding_box()
     test_surface_normal()
     test_simple_view_factor()
     test_complex_view_factor()
+    test_simple_snapshot()
+

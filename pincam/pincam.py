@@ -166,7 +166,7 @@ def _bounding_box(geometries):
     maxy = np.max(geometries[:, 1])
     maxz = np.max(geometries[:, 2])
 
-    # Construct bbox
+    # Construct bbox bottom and top surfaces
     bbox = np.array([
         [[minx, maxy, minz], [maxx, maxy, minz],
          [maxx, miny, minz], [minx, miny, minz]],
