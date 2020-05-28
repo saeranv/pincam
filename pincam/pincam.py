@@ -2,7 +2,6 @@ import numpy as np
 from .matrix_utils2 import MatrixUtils2 as mu
 from pprint import pprint as pp
 
-
 def p2e(p):
     # Matrix of projective to euclidian
     w = p[2, :] # row of w = y depth
