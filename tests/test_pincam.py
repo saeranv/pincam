@@ -4,7 +4,7 @@ import json
 from pprint import pprint as pp
 
 import numpy as np
-from pincam import pincam as cam
+from pincam.pincam import PinCam
 from pincam.matrix_utils2 import MatrixUtils2 as mu
 
 
@@ -513,9 +513,11 @@ def test_simple_snapshot():
     fov = r(35)
     heading = r(15)
     pitch = r(25)
-    cam_posn = np.array([0, -35, 4])
-    P, Rtc = cam.projection_matrix(fov, 5, heading, pitch, cam_posn)
-    xgeoms = cam.project_by_z(P, P, cam_posn, geoms, False)
+    cam_point = np.array([0, -35, 4])
+    cam = PinCam(cam_point, fov, heading, pitch)
+
+    P, Rtc = cam.projection_matrix(fov, 5, heading, pitch, cam_point)
+    xgeoms = cam.project_by_z(P, geoms, False)
 
     # Define the xgeoms we should get, in correct order
     fpath = os.path.join('tests', 'fixtures', 'simple_snapshot_surfaces.json')
@@ -529,17 +531,17 @@ def test_simple_snapshot():
 if __name__ == "__main__":
     test_basic_transform()
     test_rotation_transform()
-    test_world_to_camera_transform()
-    test_camera_to_world_transform()
-    test_post_order_transform_multiplication()
-    test_extrinsic_matrix()
-    #test_intrinsic_matrix()
-    #test_perspective_projection_transform()
-    #test_zbuffer()
-    test_bounding_box()
-    #test_single_plane_bounding_box()
-    test_surface_normal()
-    test_simple_view_factor()
-    test_complex_view_factor()
+    # test_world_to_camera_transform()
+    # test_camera_to_world_transform()
+    # test_post_order_transform_multiplication()
+    # test_extrinsic_matrix()
+    # #test_intrinsic_matrix()
+    # #test_perspective_projection_transform()
+    # #test_zbuffer()
+    # test_bounding_box()
+    # #test_single_plane_bounding_box()
+    # test_surface_normal()
+    # test_simple_view_factor()
+    # test_complex_view_factor()
     test_simple_snapshot()
 
