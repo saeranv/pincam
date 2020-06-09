@@ -4,7 +4,7 @@ import json
 from pprint import pprint as pp
 
 import numpy as np
-from pincam.pincam import PinCam
+from pincam import Pincam
 from pincam.matrix_utils2 import MatrixUtils2 as mu
 
 
@@ -385,6 +385,7 @@ def test_single_plane_bounding_box():
 
     assert False
 
+
 def test_surface_normal():
     # Test surface normal from ccw surface
     srf1 = np.array([
@@ -510,14 +511,13 @@ def test_simple_snapshot():
     geoms = [vrt_srf, top_srf, bot_srf]
 
     # Set camera parameters
-    fov = r(35)
+    focal_len = 18
     heading = r(15)
     pitch = r(25)
     cam_point = np.array([0, -35, 4])
-    cam = PinCam(cam_point, fov, heading, pitch)
 
-    P, Rtc = cam.projection_matrix(fov, 5, heading, pitch, cam_point)
-    xgeoms = cam.project_by_z(P, geoms, False)
+    cam = Pincam(cam_point, heading, pitch, focal_len)
+    xgeoms = cam.project_by_z(geoms, False)
 
     # Define the xgeoms we should get, in correct order
     fpath = os.path.join('tests', 'fixtures', 'simple_snapshot_surfaces.json')
@@ -527,6 +527,58 @@ def test_simple_snapshot():
     for xgeom, chk_xgeom in zip(xgeoms, chk_xgeoms):
         assert np.allclose(xgeom, chk_xgeom, atol=1e-10)
 
+
+def test_invert_extrinsic():
+    """Invert extrinsic to reposition objects"""
+
+    # Set camera parameters
+    heading = r(45)
+    pitch = r(0)
+    cam_point = np.array([0, -35, 4])
+
+    Rt = Pincam.extrinsic_matrix(heading, pitch, cam_point)
+    Rt_copy = np.copy(Rt)
+    #pp(Rt)
+    # Rt:
+    #   [[ 0.70710678, -0.70710678,  0.        ,  0.        ],
+    #    [ 0.70710678,  0.70710678,  0.        , 35.        ],
+    #    [ 0.        ,  0.        ,  1.        , -4.        ],
+    #    [ 0.,          0. ,         0.        ,  1.        ]]
+
+    # Make test matrices
+    test_t = np.array(
+        [[ 1.,          0.,          0.        ,  0.        ],
+         [ 0.,          1.,          0.        ,-35.        ],
+         [ 0.        ,  0.        ,  1.        ,  4.        ],
+         [ 0.,          0. ,         0.        ,  1.        ]])
+
+    test_R = np.array(
+        [[ 0.70710678,  0.70710678,  0.        ,  0.        ],
+         [-0.70710678,  0.70710678,  0.        ,  0.        ],
+         [ 0.        ,  0.        ,  1.        ,  0.        ],
+         [ 0.,          0. ,         0.        ,  1.        ]])
+
+    test_Rt = np.array(
+        [[ 0.70710678,  0.70710678,  0.        ,  0.        ],
+         [-0.70710678,  0.70710678,  0.        ,-35.        ],
+         [ 0.        ,  0.        ,  1.        ,  4.        ],
+         [ 0.,          0. ,         0.        ,  1.        ]])
+
+    # Test
+    assert np.allclose(
+       Pincam.invert_extrinsic_matrix_translation(Rt),
+       test_t, atol=1e-5)
+
+    assert np.allclose(
+        Pincam.invert_extrinsic_matrix_rotation(Rt),
+        test_R, atol=1e-10)
+
+    assert np.allclose(
+        Pincam.invert_extrinsic_matrix(Rt),
+        test_Rt, atol=1e-10)
+
+    # Ensure no mutations occured
+    assert np.allclose(Rt, Rt_copy, atol=1e-10)
 
 if __name__ == "__main__":
     test_basic_transform()
@@ -543,5 +595,6 @@ if __name__ == "__main__":
     # test_surface_normal()
     # test_simple_view_factor()
     # test_complex_view_factor()
-    test_simple_snapshot()
+    # test_simple_snapshot()
+    test_invert_extrinsic()
 

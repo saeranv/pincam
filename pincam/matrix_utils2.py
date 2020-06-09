@@ -4,6 +4,7 @@ import numpy as np
 import shapely.geometry as shapegeom
 import shapely.ops as shapeops
 
+
 class MatrixUtils2(object):
     """
     An improvement of the MatrixUtils static class.
