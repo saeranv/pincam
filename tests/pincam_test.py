@@ -585,19 +585,22 @@ def test_invert_extrinsic():
     assert np.allclose(Rt, Rt_copy, atol=1e-10)
 
 
-def test_view_frustum_geometry():
+def test_project_camera_sensor_geometry():
     """Test the function to project geometry in 3D and reference sensor."""
 
+    # Make camera
     focal_length = 20
     heading = r(0)
     pitch = r(10)
     cam_point = np.array([0, -45, 0])
     cam = Pincam(cam_point, heading, pitch, focal_length)
 
-    # Pass an empty list so that we just compute the camera sensor
-    _ptmtx = cam.view_frustum_geometry([], show_cam=True)
-    cam_pts = _ptmtx[0]
+    # Get inverted extrinsic matrix
+    iRt = cam.invert_extrinsic_matrix(cam.Rt)
 
+    # Make camera points
+    cam_pts = Pincam.project_camera_sensor_geometry(
+        iRt, cam.sensor_plane_ptmtx_3d)
     test_cam_pts = np.array(
         [[-50.        , -52.99875777, -41.42621966],
          [ 50.        , -52.99875777, -41.42621966],
@@ -608,6 +611,38 @@ def test_view_frustum_geometry():
     # Test
     assert np.allclose(cam_pts, test_cam_pts, atol=7)
 
+def test_raymtx():
+    """Make raymtx from camera sensor plane"""
+
+    # Make camera
+    focal_length = 20
+    heading = r(0)
+    pitch = r(10)
+    cam_point = np.array([0, -45, 0])
+    cam = Pincam(cam_point, heading, pitch, focal_length)
+
+    # Get and Rt camera sensor geometry
+    plane = cam.sensor_plane_ptmtx_3d
+    plane /= 10.0
+    # plane:
+    # [[-50.,   0., -50.],
+    #  [ 50.,   0., -50.],
+    #  [ 50.,   0.,  50.],
+    #  [-50.,   0.,  50.],
+    #  [-50.,   0., -50.]]
+
+    check_msh = np.array(
+        [[-5,  0, -5], [0,  0, -5], [5,  0, -5],
+         [-5,  0,  0], [0,  0,  0], [5,  0,  0],
+         [-5,  0,  5], [0,  0,  5], [5,  0,  5]])
+
+    msh = np.meshgrid(
+        np.arange(-5, 6, 5),
+        np.arange(-5, 6, 5))
+
+    pp(check_msh[:,:])
+
+    assert False
 
 if __name__ == "__main__":
     test_basic_transform()
@@ -626,5 +661,4 @@ if __name__ == "__main__":
     # test_complex_view_factor()
     # test_simple_snapshot()
     test_invert_extrinsic()
-    test_view_frustrum_geometry()
 

@@ -68,6 +68,17 @@ class Pincam(object):
             '\nPitch: {} deg'.format(self.pitch / np.pi * 180.0)
 
     @property
+    def P(self):
+        """Get projection matrix P."""
+        return self.projection_matrix(
+            self.focal_length, self.heading, self.pitch, self.cam_point)
+
+    @property
+    def Rt(self):
+        """Get extrinsic matrix"""
+        return self.extrinsic_matrix(self.heading, self.pitch, self.cam_point)
+
+    @property
     def sensor_plane_ptmtx_2d(self):
         """Get camera sensor_panel"""
 
@@ -82,15 +93,6 @@ class Pincam(object):
         pw = 50.0  #self.DEFAULT_SENSOR_WORLD_WIDTH / 2.
         return np.array(
             [[-1, 0, -1], [1, 0, -1], [1, 0, 1], [-1, 0, 1], [-1, 0, -1]]) * pw
-
-
-    @property
-    def P(self):
-        """Get projection matrix P."""
-        if True:#if self._P is None:
-            self._P = Pincam.projection_matrix(
-                self.focal_length, self.heading, self.pitch, self.cam_point)
-        return self._P
 
     @staticmethod
     def world_to_camera_matrix():
@@ -114,7 +116,7 @@ class Pincam(object):
         return Pincam.world_to_camera_matrix()
 
     @staticmethod
-    def extrinsic_matrix(heading, pitch, cam_posn):
+    def extrinsic_matrix(heading, pitch, cam_point):
         """
         Affine transformation (combination of linear transformation and
         translation) are linear transforms where the origin does not
@@ -123,7 +125,7 @@ class Pincam(object):
         """
         # Init parameters
         origin = np.array([0, 0, 0])
-        cam_posn = -1 * cam_posn.copy()
+        cam_posn = -1 * cam_point.copy()
 
         # TODO: Invert all of this
         # Make Rz matrix
@@ -469,8 +471,16 @@ class Pincam(object):
 
         return _helper_project(P, cam_posn, grouped_by_z)
 
+    @staticmethod
+    def project_camera_sensor_geometry(iRt, sensor_plane_3d):
+        """Project a reference camera into the scene"""
+
+        cam_srf = np.insert(sensor_plane_3d, 3, 1, 1)
+        cam_srf = np.matmul(iRt, cam_srf.T).T
+        return cam_srf[:, :3]
+
     def view_frustum_geometry(self, ptmtx, show_cam=True):
-        """View the geometries in the view frustrum
+        """View the geometries in the view frustum
 
         Args:
             ptmtx: List of surfaces as numpy array of points.
@@ -479,31 +489,44 @@ class Pincam(object):
         Returns:
             List of surfaces projected in 3d, with reference camera
                 as surface.
-
         """
         # Project sensor, surface geometries in 3d
         _ptmtx = [Pincam.project3d(self.P, pts) for pts in ptmtx]
 
-        # Invert the affine transformations (rotation, translation)
-        Rt = Pincam.extrinsic_matrix(self.heading, self.pitch, self.cam_point)
-        it = Pincam._invert_extrinsic_matrix_translation(Rt)
-        iR = Pincam._invert_extrinsic_matrix_rotation(Rt)
-        iRt = mu.matmul_xforms([it, iR])
-
+        # Make into projective points
         _ptmtx = [np.insert(srf, 3, 1, 1) for srf in _ptmtx]
 
-        # Apply inverse transformations
+        # Invert the affine transformations (rotation, translation)
+        iRt = self.invert_extrinsic_matrix(self.Rt)
         _ptmtx = [np.matmul(iRt, srf.T).T for srf in _ptmtx]
+        _ptmtx = [srf[:, :3] for srf in _ptmtx]
 
         if show_cam:
-            cam_pts = np.insert(self.sensor_plane_ptmtx_3d, 3, 1, 1)
-            iR = Pincam._invert_extrinsic_matrix_rotation(Rt)
-            it = Pincam._invert_extrinsic_matrix_translation(Rt)
-            iRt = mu.matmul_xforms([it, iR])
-            cam_pts = np.matmul(iRt, cam_pts.T).T
-            _ptmtx += [cam_pts]  # add camera sensor
+            camsrf = Pincam.project_camera_sensor_geometry(
+                iRt, self.sensor_plane_ptmtx_3d)
+            _ptmtx += [camsrf]
 
-        _ptmtx = [srf[:, :3] for srf in _ptmtx]
+        return _ptmtx
+
+    def view_frustum_geometry2(self, ptmtx, show_cam=True):
+        """View the geometries in the view frustum w/ geom moved.
+
+        Args:
+            ptmtx: List of surfaces as numpy array of points.
+            show_ref_cam: Show the camera that is 'viewing' the geometry (Default: True).
+
+        Returns:
+            List of surfaces projected in 3d, with reference camera
+                as surface.
+        """
+
+        _ptmtx = ptmtx
+
+        # Project sensor, surface geometries in 3d
+        _ptmtx = [Pincam.project3d(self.P, pts) for pts in _ptmtx]
+
+        if show_cam:
+            _ptmtx += [self.sensor_plane_ptmtx_3d]
 
         return _ptmtx
 
