@@ -3,6 +3,24 @@ from .matrix_utils2 import MatrixUtils2 as mu
 from pprint import pprint as pp
 
 
+def p2e(p):
+    """Matrix of projective to euclidian.
+
+    For ortho:
+    #w = 10
+    #return (p / w)[0:2, :].T
+    """
+    w = p[2, :] # row of w = y depth
+    return (p / w)[0:2, :].T
+
+
+def e2p(e):
+    """Matrix of euclidean to projective
+    Converts to column vectors
+    """
+    return np.insert(e, 3, 1, 1).T
+
+
 class Pincam(object):
     """Lightweight pinhole camera.
 
@@ -19,8 +37,13 @@ class Pincam(object):
         * P
         * frame
     """
+
     RAD35 = 35.0 / 180.0 * np.pi
     RAD45 = 45.0 / 180.0 * np.pi
+    DEFAULT_PIXEL_RESOLUTION = 100.0
+    DEFAULT_SENSOR_WORLD_WIDTH = 23.6
+    DEFAULT_MIN_FOCAL_LENGTH = 18
+    DEFAULT_MAX_FOCAL_LENGTH = 70
 
     def __init__(self, cam_point, heading=RAD45, pitch=RAD45, focal_length=18):
         """Initialize Pincam"""
@@ -44,30 +67,29 @@ class Pincam(object):
             '\nHeading: {} deg'.format(self.heading / np.pi * 180.0) + \
             '\nPitch: {} deg'.format(self.pitch / np.pi * 180.0)
 
-    @staticmethod
-    def p2e(p):
-        # Matrix of projective to euclidian
-        w = p[2, :] # row of w = y depth
-        return (p / w)[0:2, :].T
+    @property
+    def sensor_plane_ptmtx_2d(self):
+        """Get camera sensor_panel"""
 
-    @staticmethod
-    def ortho_p2e(p):
-        # Matrix of projective to euclidian
-        w = 10
-        return (p / w)[0:2, :].T
+        pw = 50.0  #self.DEFAULT_SENSOR_WORLD_WIDTH
+        return np.array(
+            [[-1, -1], [1, -1], [1, 1], [-1, 1], [-1, -1]]) * pw
 
-    @staticmethod
-    def e2p(e):
-        # Matrix of euclidean to projective
-        # Converts to column vectors
-        return np.insert(e, 3, 1, 1).T
+    @property
+    def sensor_plane_ptmtx_3d(self):
+        """Get camera sensor_panel"""
+
+        pw = 50.0  #self.DEFAULT_SENSOR_WORLD_WIDTH / 2.
+        return np.array(
+            [[-1, 0, -1], [1, 0, -1], [1, 0, 1], [-1, 0, 1], [-1, 0, -1]]) * pw
+
 
     @property
     def P(self):
+        """Get projection matrix P."""
         if True:#if self._P is None:
             self._P = Pincam.projection_matrix(
                 self.focal_length, self.heading, self.pitch, self.cam_point)
-
         return self._P
 
     @staticmethod
@@ -94,7 +116,10 @@ class Pincam(object):
     @staticmethod
     def extrinsic_matrix(heading, pitch, cam_posn):
         """
-        TBD
+        Affine transformation (combination of linear transformation and
+        translation) are linear transforms where the origin does not
+        neccessarily map to origin.
+        Ref: http://graphics.cs.cmu.edu/courses/15-463/2006_fall/www/Lectures/warping.pdf
         """
         # Init parameters
         origin = np.array([0, 0, 0])
@@ -151,19 +176,20 @@ class Pincam(object):
         # Assume square aspect ratio for now
         #sensor_world_width = 0.5
         # TODO: convert the mm into m for flen and sensor dims
-        min_flen, max_flen = 18, 70 # convert to m
+        min_flen = Pincam.DEFAULT_MIN_FOCAL_LENGTH  # convert to m
+        max_flen = Pincam.DEFAULT_MAX_FOCAL_LENGTH
         assert (flen <= max_flen) and (flen >= min_flen), \
             '{} >= focal length >= {}'.format(min_flen, max_flen)
 
         #max_sensor_world_width = 2 * np.tan(fov / 2.0) * max_flen
         #min_sensor_world_width = 2 * np.tan(fov / 2.0) * min_flen
         #delta_sensor_world_width = max_sensor_world_width - min_sensor_world_width
-        sensor_world_width = 23.6
+        sensor_world_width = Pincam.DEFAULT_SENSOR_WORLD_WIDTH
         fov = np.arctan(flen / sensor_world_width)
         #sensor_world_width = 2 * np.tan(fov / 2.0) * flen
         #sensor_pixel_width = 100
         #sensor_pixel_width = sensor_pixel_width * flen / delta_flen
-        sensor_pixel_res = 100
+        sensor_pixel_res = Pincam.DEFAULT_PIXEL_RESOLUTION
         sensor_pixel_width = sensor_world_width / sensor_pixel_res
         # Multiply this by world coords to get pixel coords
         #pixel_conv_factor = sensor_pixel_width #/ sensor_world_width
@@ -180,7 +206,7 @@ class Pincam(object):
         return K
 
     @staticmethod
-    def invert_extrinsic_matrix_translation(Rt):
+    def _invert_extrinsic_matrix_translation(Rt):
         """Invert translation in extrinsic matrix"""
 
         # Invert translation is negative vector
@@ -191,7 +217,7 @@ class Pincam(object):
         return _Rt
 
     @staticmethod
-    def invert_extrinsic_matrix_rotation(Rt):
+    def _invert_extrinsic_matrix_rotation(Rt):
         """Invert rotation in extrinsic matrix"""
 
         # Invert rotation matrix is it's transpose
@@ -203,13 +229,16 @@ class Pincam(object):
 
     @staticmethod
     def invert_extrinsic_matrix(Rt):
-        """Invert rotation and translation in extrinsic matrix"""
+        """Invert rotation and translation in extrinsic matrix
 
-        _Rt = Pincam.invert_extrinsic_matrix_rotation(Rt)
-        _Rt[:3, 3] = Pincam.invert_extrinsic_matrix_translation(Rt)[:3, 3]
+        Order of transformations is important. First inverse translation
+        and then inverse rotation.
+        """
 
-        return _Rt
+        it = Pincam._invert_extrinsic_matrix_translation(Rt)
+        iR = Pincam._invert_extrinsic_matrix_rotation(Rt)
 
+        return mu.matmul_xforms([it, iR])
 
     @staticmethod
     def projection_matrix(focal_length, heading, pitch, cam_point):
@@ -235,19 +264,6 @@ class Pincam(object):
         stacked = np.concatenate(geometries)
 
         return stacked, idx
-
-    @staticmethod
-    def sensor_bounds(sensor_pixel_width=100):
-        """
-        TBD
-        """
-
-        pw = sensor_pixel_width / 2.
-        bounds = np.array([
-            [-pw, -pw], [pw, -pw], [pw, pw], [-pw, pw], [-pw, -pw]
-        ])
-
-        return bounds
 
     @staticmethod
     def _bounding_box(geometries):
@@ -285,32 +301,6 @@ class Pincam(object):
         return normal / np.linalg.norm(normal)
 
     @staticmethod
-    def fit_to_view_frustum(P, surface):
-        """Squish orthogonal geometries into view frustum.
-
-        Args:
-            surface: n x 3 point matrix of orthogonal surface
-
-        Returns:
-            surface: n x 3 point matrix of distorted perspective surface
-        """
-        # 3d ptmtx n x 3 ortho geometry
-        # Affine transformation of 3d surface to 2d planar projection
-        xsurface = np.matmul(P, Pincam.e2p(surface))  # n x 4 matrix
-
-        # Dividing x, y by depth shrinks surface proportional to depth in view frustum
-        w = xsurface[2, :]  # Column vector of depths
-        xsurface = (xsurface / w).T
-
-        # Convert from 2d to 3d world coordinates
-        xsurface[:, 2] = w  # Add depth information into 3rd column to make 3d
-        xsurface = np.insert(xsurface, 3, 1, 1)  # n x 4 matrix of homogenous coordinates
-        xsurface = np.matmul(Pincam.camera_to_world_matrix(), xsurface.T).T
-
-        # 3d ptmtx n x 3 perspective geometry
-        return xsurface[:, :3]
-
-    @staticmethod
     def view_factor(P, surface):
         """Calculate the view factor (the projection of the surface to the principle point).
 
@@ -327,7 +317,7 @@ class Pincam(object):
         # Camera position in world coordinates
         cam_point = np.array([0, 1, 0])
 
-        xsurface = Pincam.fit_to_view_frustum(P, surface)
+        xsurface = Pincam.project3d(P, surface)
 
         # Get normal from surface squished into view frustum
         N = Pincam._surface_normal(xsurface)
@@ -355,14 +345,39 @@ class Pincam(object):
         view_bot = view_bot_factor > 0.0
         view_top_factor = Pincam.view_factor(P, srf_top)
         view_top = view_top_factor > 0.0
-        #print('view bot:', round(view_bot_factor, 2))
-        #print('view top:', round(view_top_factor, 2))
-        #print('--')
 
         return (view_bot, view_top), (view_bot_factor, view_top_factor)
 
     @staticmethod
-    def project(P, cam_posn, geometries, ortho=False):
+    def project3d(P, surface):
+        """This is a 3D projection transformation.
+
+        Squish orthogonal geometries into 3d view frustum.
+
+        Args:
+            surface: n x 3 point matrix of orthogonal surface
+
+        Returns:
+            surface: n x 3 point matrix of distorted perspective surface
+        """
+        # 3d ptmtx n x 3 ortho geometry
+        # Affine transformation of 3d surface to 2d planar projection
+        xsurface = np.matmul(P, e2p(surface))  # n x 4 matrix
+
+        # Dividing x, y by depth shrinks surface proportional to depth in view frustum
+        w = xsurface[2, :]  # Column vector of depths
+        xsurface = (xsurface / w).T
+
+        # Convert from 2d to 3d world coordinates
+        xsurface[:, 2] = w  # Add depth information into 3rd column to make 3d
+        xsurface = np.insert(xsurface, 3, 1, 1)  # n x 4 matrix of homogenous coordinates
+        xsurface = np.matmul(Pincam.camera_to_world_matrix(), xsurface.T).T
+
+        # 3d ptmtx n x 3 perspective geometry
+        return xsurface[:, :3]
+
+    @staticmethod
+    def project(P, cam_posn, geometries):
         """
         TBD
         """
@@ -371,17 +386,14 @@ class Pincam(object):
         ptmtx, idx = Pincam.stack(geometries)
 
         # MuLtiply geometries by P matrix
-        ptmtx = Pincam.e2p(ptmtx)
+        ptmtx = e2p(ptmtx)
         xptmtx = np.matmul(P, ptmtx)
 
         furthest_depths = [max(warr) for warr in np.split(xptmtx[2], idx)]
 
         ordered_depths = np.argsort(furthest_depths)[::-1]
 
-        if ortho:
-            xptmtx = Pincam.ortho_p2e(xptmtx)
-        else:
-            xptmtx = Pincam.p2e(xptmtx)
+        xptmtx = p2e(xptmtx)
 
         # Split and sort by z buffer
         xgeometries = np.array(np.split(xptmtx, idx))
@@ -389,12 +401,12 @@ class Pincam(object):
         return xgeometries[ordered_depths].tolist()
 
     def project_by_z(self, geometries, ortho=False):
-
+        #TODO: Deprecate
         def _helper_project(P, cam_posn, _grouped_by_z):
             # Project
             proj_geoms = []
             for geoms in _grouped_by_z:
-                pgeoms = Pincam.project(P, cam_posn, geoms.T[0], ortho=ortho)
+                pgeoms = Pincam.project(P, cam_posn, geoms.T[0])
                 pgeoms = [np.array(pgeom) for pgeom in pgeoms]
                 proj_geoms.extend(pgeoms)
             return proj_geoms
@@ -456,6 +468,44 @@ class Pincam(object):
             print('Nothing in view. Check if camera is too close too object.')
 
         return _helper_project(P, cam_posn, grouped_by_z)
+
+    def view_frustum_geometry(self, ptmtx, show_cam=True):
+        """View the geometries in the view frustrum
+
+        Args:
+            ptmtx: List of surfaces as numpy array of points.
+            show_ref_cam: Show the camera that is 'viewing' the geometry (Default: True).
+
+        Returns:
+            List of surfaces projected in 3d, with reference camera
+                as surface.
+
+        """
+        # Project sensor, surface geometries in 3d
+        _ptmtx = [Pincam.project3d(self.P, pts) for pts in ptmtx]
+
+        # Invert the affine transformations (rotation, translation)
+        Rt = Pincam.extrinsic_matrix(self.heading, self.pitch, self.cam_point)
+        it = Pincam._invert_extrinsic_matrix_translation(Rt)
+        iR = Pincam._invert_extrinsic_matrix_rotation(Rt)
+        iRt = mu.matmul_xforms([it, iR])
+
+        _ptmtx = [np.insert(srf, 3, 1, 1) for srf in _ptmtx]
+
+        # Apply inverse transformations
+        _ptmtx = [np.matmul(iRt, srf.T).T for srf in _ptmtx]
+
+        if show_cam:
+            cam_pts = np.insert(self.sensor_plane_ptmtx_3d, 3, 1, 1)
+            iR = Pincam._invert_extrinsic_matrix_rotation(Rt)
+            it = Pincam._invert_extrinsic_matrix_translation(Rt)
+            iRt = mu.matmul_xforms([it, iR])
+            cam_pts = np.matmul(iRt, cam_pts.T).T
+            _ptmtx += [cam_pts]  # add camera sensor
+
+        _ptmtx = [srf[:, :3] for srf in _ptmtx]
+
+        return _ptmtx
 
     def to_gpd_geometry(self, ptmtx):
         """Project geometries to 3d from geopandas dataframe

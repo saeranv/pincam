@@ -6,6 +6,7 @@ from pprint import pprint as pp
 import numpy as np
 from pincam import Pincam
 from pincam.matrix_utils2 import MatrixUtils2 as mu
+cam = Pincam
 
 
 def r(d):
@@ -55,10 +56,10 @@ def test_basic_transform():
     out1 = np.matmul(mtx1, mtx2.T).T
     assert not np.allclose(out1, refmtx)
 
-    out2 = mtx1.dot(mtx2) # Won't work b/c matrix multiplication is from left to right
+    out2 = mtx1.dot(mtx2)  # Won't work b/c matrix multiplication is from left to right
     assert not np.allclose(out2, refmtx, 1e-10)
 
-    out3 = mtx2.dot(mtx1) # Correct order
+    out3 = mtx2.dot(mtx1)  # Correct order
     assert np.allclose(out3, refmtx)
 
     # Same order with matmul is equivalent
@@ -211,7 +212,7 @@ def test_extrinsic_matrix():
     cam_posn = np.array([0, 0, 5])
     Rt = cam.extrinsic_matrix(heading, pitch, cam_posn)
 
-    v = 0.7071067811865476 # sin(45) and cos(45)
+    v = 0.7071067811865476  # sin(45) and cos(45)
     chk_Rt = np.array([
         [ 1,  0,  0,  0],
         [ 0,  v, -v,  0],
@@ -538,7 +539,7 @@ def test_invert_extrinsic():
 
     Rt = Pincam.extrinsic_matrix(heading, pitch, cam_point)
     Rt_copy = np.copy(Rt)
-    #pp(Rt)
+
     # Rt:
     #   [[ 0.70710678, -0.70710678,  0.        ,  0.        ],
     #    [ 0.70710678,  0.70710678,  0.        , 35.        ],
@@ -549,8 +550,8 @@ def test_invert_extrinsic():
     test_t = np.array(
         [[ 1.,          0.,          0.        ,  0.        ],
          [ 0.,          1.,          0.        ,-35.        ],
-         [ 0.        ,  0.        ,  1.        ,  4.        ],
-         [ 0.,          0. ,         0.        ,  1.        ]])
+         [ 0.,          0.,          1.        ,  4.        ],
+         [ 0.,          0.,          0.        ,  1.        ]])
 
     test_R = np.array(
         [[ 0.70710678,  0.70710678,  0.        ,  0.        ],
@@ -558,20 +559,23 @@ def test_invert_extrinsic():
          [ 0.        ,  0.        ,  1.        ,  0.        ],
          [ 0.,          0. ,         0.        ,  1.        ]])
 
+    # test_t x test_R (Note that order is reversed)
     test_Rt = np.array(
-        [[ 0.70710678,  0.70710678,  0.        ,  0.        ],
-         [-0.70710678,  0.70710678,  0.        ,-35.        ],
-         [ 0.        ,  0.        ,  1.        ,  4.        ],
-         [ 0.,          0. ,         0.        ,  1.        ]])
+        [[ 0.70710678,  0.70710678,  0.        ,-24.7487373],
+         [-0.70710678,  0.70710678,  0.        ,-24.7487373],
+         [ 0.        ,  0.        ,  1.        ,  4.       ],
+         [ 0.,          0. ,         0.        ,  1.       ]])
 
     # Test
     assert np.allclose(
-       Pincam.invert_extrinsic_matrix_translation(Rt),
+       Pincam._invert_extrinsic_matrix_translation(Rt),
        test_t, atol=1e-5)
 
     assert np.allclose(
-        Pincam.invert_extrinsic_matrix_rotation(Rt),
+        Pincam._invert_extrinsic_matrix_rotation(Rt),
         test_R, atol=1e-10)
+
+    print(Pincam.invert_extrinsic_matrix(Rt))
 
     assert np.allclose(
         Pincam.invert_extrinsic_matrix(Rt),
@@ -579,6 +583,31 @@ def test_invert_extrinsic():
 
     # Ensure no mutations occured
     assert np.allclose(Rt, Rt_copy, atol=1e-10)
+
+
+def test_view_frustum_geometry():
+    """Test the function to project geometry in 3D and reference sensor."""
+
+    focal_length = 20
+    heading = r(0)
+    pitch = r(10)
+    cam_point = np.array([0, -45, 0])
+    cam = Pincam(cam_point, heading, pitch, focal_length)
+
+    # Pass an empty list so that we just compute the camera sensor
+    _ptmtx = cam.view_frustum_geometry([], show_cam=True)
+    cam_pts = _ptmtx[0]
+
+    test_cam_pts = np.array(
+        [[-50.        , -52.99875777, -41.42621966],
+         [ 50.        , -52.99875777, -41.42621966],
+         [ 50.        , -35.63394   ,  57.05455565],
+         [-50.        , -35.63394   ,  57.05455565],
+         [-50.        , -52.99875777, -41.42621966]])
+
+    # Test
+    assert np.allclose(cam_pts, test_cam_pts, atol=7)
+
 
 if __name__ == "__main__":
     test_basic_transform()
@@ -597,4 +626,5 @@ if __name__ == "__main__":
     # test_complex_view_factor()
     # test_simple_snapshot()
     test_invert_extrinsic()
+    test_view_frustrum_geometry()
 
