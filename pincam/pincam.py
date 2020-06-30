@@ -1,5 +1,6 @@
 import numpy as np
 from .matrix_utils2 import MatrixUtils2 as mu
+from ladybug_geometry.geometry3d import Point3D, Vector3D, Ray3D, Plane, Face3D
 from pprint import pprint as pp
 
 
@@ -470,6 +471,77 @@ class Pincam(object):
             print('Nothing in view. Check if camera is too close too object.')
 
         return _helper_project(P, cam_posn, grouped_by_z)
+
+    @staticmethod
+    def ray_hit_matrix(sensor_plane_3d, res=10):
+        """Ray hit matrix"""
+
+        p = sensor_plane_3d
+
+        # Principal point at origin at 0,0,0
+        # Sensor plane is square matrix
+        minb, maxb = np.min(p), np.max(p)
+        step = (maxb - minb) / res
+        xx, zz = np.meshgrid(
+            np.arange(minb, maxb + 1, step),
+            np.arange(minb, maxb + 1, step))
+
+        res += 1
+        yy = np.zeros(res * res).reshape((res, res))
+
+        return [xx, yy, zz]
+
+    @staticmethod
+    def ray_hit_plane(ray_pt, ray_dir, plane_origin, plane_normal):
+        """
+        Ray hits plane .
+        """
+        ray_pt, ray_dir = Point3D.from_array(ray_pt), Point3D.from_array(ray_dir)
+        pln_n, pln_o = Vector3D.from_array(plane_normal), Point3D.from_array(plane_origin)
+
+        # Make geometries
+        ray = Ray3D(ray_pt, ray_dir)
+        plane = Plane(pln_n, pln_o)
+
+        r = plane.intersect_line_ray(ray)
+
+        if r is None:
+            return r
+
+        return np.array(r.to_array())
+
+    @staticmethod
+    def ray_hit_polygon(ray_pt, ray_dir, polygon):
+        """Return hit point from ray and polygon, if intersection exists
+
+        Another way is perform a ray-plane intersection calculation. Take
+        the intersection point P, represent it using 2D coordinates with the
+        above orthonormal basis. In addition, as in the previous solution,
+        represent your polygon in 2D using the same basis.
+
+        Then run any "is point in polygon" 2D algorithm and you will get
+        your results.
+        """
+
+        # TODO: make this a helper method for the LB method
+        # then PR to ladybug
+        
+        boundary = [Point3D.from_array(p) for p in polygon]
+        face = Face3D(boundary)
+
+        ipt = Pincam.ray_hit_plane(ray_pt, ray_dir, face.centroid, face.normal)
+        if ipt is None:
+            return None
+
+        # Multiply all vertices by inverse orthobasis of plane 3d
+        poly2d = face.boundary_polygon2d
+        ipt2d = face.plane.xyz_to_xy(Point3D.from_array(ipt))
+
+        if not poly2d.is_point_inside_check(ipt2d):
+            return None
+
+        return np.array(ipt)
+
 
     @staticmethod
     def project_camera_sensor_geometry(iRt, sensor_plane_3d):

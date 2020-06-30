@@ -631,18 +631,68 @@ def test_raymtx():
     #  [-50.,   0.,  50.],
     #  [-50.,   0., -50.]]
 
-    check_msh = np.array(
-        [[-5,  0, -5], [0,  0, -5], [5,  0, -5],
-         [-5,  0,  0], [0,  0,  0], [5,  0,  0],
-         [-5,  0,  5], [0,  0,  5], [5,  0,  5]])
+    # resolution of 3
+    xx = np.array(
+        [[-5, 0, 5],
+         [-5, 0, 5],
+         [-5, 0, 5]]) * 10.0
 
-    msh = np.meshgrid(
-        np.arange(-5, 6, 5),
-        np.arange(-5, 6, 5))
+    yy = np.array(
+        [[ 0,  0,  0],
+         [ 0,  0,  0],
+         [ 0,  0,  0]]) * 10.0
 
-    pp(check_msh[:,:])
+    zz = np.array(
+        [[-5, -5, -5],
+         [ 0,  0,  0],
+         [ 5,  5,  5]]) * 10.0
+    check_m = [xx, yy, zz]
 
-    assert False
+    # Test
+    m = cam.ray_hit_matrix(cam.sensor_plane_ptmtx_3d, res=2)
+
+    assert len(m) == 3
+    for i in range(3):
+        assert np.allclose(m[i], check_m[i], atol=1e-10)
+
+
+def test_rayhitpoly():
+    # Test ray plane interection
+
+    # 2 x 2 square at y=2
+    poly = np.array(
+        [[-1.,   2., -1.],
+         [ 1.,   2., -1.],
+         [ 1.,   2.,  1.],
+         [-1.,   2.,  1.]])
+    poly_origin = [0, 2, 0]
+    poly_norm = np.array([0, -1, 0])
+
+    # Check straight intersection
+    ray_pt = np.array([0, 0, 0])
+    ray_dir = np.array([0, 1, 0])
+    ipt = Pincam.ray_hit_plane(ray_pt, ray_dir, poly_origin, poly_norm)
+    assert np.allclose(ipt, np.array([0, 2, 0]), 1e-10)
+
+    # Check no intersection
+    ipt = Pincam.ray_hit_plane(ray_pt, -ray_dir, poly_origin, poly_norm)
+    assert ipt is None
+
+    # Check reverse plane still hit
+    ipt = Pincam.ray_hit_plane(ray_pt, ray_dir, poly_origin, -poly_norm)
+    assert np.allclose(ipt, np.array([0, 2, 0]), atol=1e-10)
+
+    # Check intersection w/ poly
+    ipt = Pincam.ray_hit_polygon(ray_pt, ray_dir, poly)
+    assert np.allclose(ipt, np.array([0, 2, 0]), atol=1e-10)
+
+    # Check hit plane but miss poly bounds
+    ray_dir = np.array([0, 1, 2]) # 63.43 angle should  miss poly
+    ipt = Pincam.ray_hit_plane(ray_pt, ray_dir, poly_origin, poly_norm)
+    assert ipt is not None
+    ipt = Pincam.ray_hit_polygon(ray_pt, ray_dir, poly)
+    assert ipt is None
+
 
 if __name__ == "__main__":
     test_basic_transform()
