@@ -1,7 +1,10 @@
 import numpy as np
 from .matrix_utils2 import MatrixUtils2 as mu
 from ladybug_geometry.geometry3d import Point3D, Vector3D, Ray3D, Plane, Face3D
+from ladybug_geometry.geometry2d import Point2D
 from pprint import pprint as pp
+import geopandas as gpd
+import cv2
 
 
 def p2e(p):
@@ -513,19 +516,8 @@ class Pincam(object):
     @staticmethod
     def ray_hit_polygon(ray_pt, ray_dir, polygon):
         """Return hit point from ray and polygon, if intersection exists
-
-        Another way is perform a ray-plane intersection calculation. Take
-        the intersection point P, represent it using 2D coordinates with the
-        above orthonormal basis. In addition, as in the previous solution,
-        represent your polygon in 2D using the same basis.
-
-        Then run any "is point in polygon" 2D algorithm and you will get
-        your results.
         """
 
-        # TODO: make this a helper method for the LB method
-        # then PR to ladybug
-        
         boundary = [Point3D.from_array(p) for p in polygon]
         face = Face3D(boundary)
 
@@ -535,13 +527,25 @@ class Pincam(object):
 
         # Multiply all vertices by inverse orthobasis of plane 3d
         poly2d = face.boundary_polygon2d
-        ipt2d = face.plane.xyz_to_xy(Point3D.from_array(ipt))
+
+        # Stack column vectors to make change of basis matrix
+        z = np.cross(face.plane.x.to_array(), face.plane.y.to_array())
+        basis_mtx = np.array([face.plane.x.to_array(),
+                              face.plane.y.to_array(), z]).T
+        # Transpose of orthonormal is it's inverse
+        ibasis_mtx = basis_mtx.T
+        ipt2d = np.matmul(ibasis_mtx, ipt - face.plane.o)
+        ipt2d = Point2D(ipt2d[0], ipt2d[1])
 
         if not poly2d.is_point_inside_check(ipt2d):
             return None
 
         return np.array(ipt)
 
+    def depth_buffer(self, ptmtx):
+        """Build the depth buffer."""
+        # Build two matrices of geometries for analyis
+        geom_3d_list = self.view_frustum_geometry2(ptmtx, show_cam=False)
 
     @staticmethod
     def project_camera_sensor_geometry(iRt, sensor_plane_3d):
@@ -601,6 +605,14 @@ class Pincam(object):
             _ptmtx += [self.sensor_plane_ptmtx_3d]
 
         return _ptmtx
+
+    def image_matrix(self, ptmtx):
+        """Construct 2d matrix of geometries."""
+
+        ptmtx = Pincam.project(self.P, self.cam_point, ptmtx)
+        ptmtx = [np.array(srf) for srf in ptmtx]
+        shapes = [mu.shapely_from_srf3d(srf) for srf in ptmtx]
+        return gpd.GeoDataFrame({'geometry': shapes})
 
     def to_gpd_geometry(self, ptmtx):
         """Project geometries to 3d from geopandas dataframe

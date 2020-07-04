@@ -501,14 +501,11 @@ def test_simple_snapshot():
 
     # Define surfaces
     bot_srf = np.array(
-        [[-5, -5, 0], [5, -5, 0], [5, 5, 0], [-5, 5, 0]]
-        )
+        [[-5, -5, 0], [5, -5, 0], [5, 5, 0], [-5, 5, 0]])
     top_srf = np.array(
-        [[-5, -5, 10], [5, -5, 10], [5, 5, 10], [-5, 5, 10]]
-        )
+        [[-5, -5, 10], [5, -5, 10], [5, 5, 10], [-5, 5, 10]])
     vrt_srf = np.array(
-        [[-4, 0, 0], [4, 0, 0], [4, 0, 6], [0, 0, 10], [-4, 0, 6]]
-        )
+        [[-4, 0, 0], [4, 0, 0], [4, 0, 6], [0, 0, 10], [-4, 0, 6]])
     geoms = [vrt_srf, top_srf, bot_srf]
 
     # Set camera parameters
@@ -694,21 +691,42 @@ def test_rayhitpoly():
     assert ipt is None
 
 
-if __name__ == "__main__":
-    test_basic_transform()
-    test_rotation_transform()
-    # test_world_to_camera_transform()
-    # test_camera_to_world_transform()
-    # test_post_order_transform_multiplication()
-    # test_extrinsic_matrix()
-    # #test_intrinsic_matrix()
-    # #test_perspective_projection_transform()
-    # #test_zbuffer()
-    # test_bounding_box()
-    # #test_single_plane_bounding_box()
-    # test_surface_normal()
-    # test_simple_view_factor()
-    # test_complex_view_factor()
-    # test_simple_snapshot()
-    test_invert_extrinsic()
+def test_depth_buffer():
+    """Test building depth buffer."""
 
+    poly_front = np.array(
+        [[-5, 0, 0], [5, 0, 0], [5, 0, 5], [-5, 0, 5]])
+    poly_back = np.array(
+        [[-5, 2, 0], [5, 2, 0], [5, 2, 5], [-5, 2, 5]])
+    ptmtx = [poly_front, poly_back]
+
+    # Make camera
+    focal_length = 20
+    heading = r(0)
+    pitch = r(10)
+    cam_point = np.array([0, -10, 0])
+    cam = Pincam(cam_point, heading, pitch, focal_length)
+
+    cam.depth_buffer(ptmtx)
+
+    assert False
+
+def test_image_matrix():
+    """Test image matrix."""
+
+    poly_front = np.array(
+        [[-5, 0, 0], [5, 0, 0], [5, 0, 5], [-5, 0, 5]])
+    poly_back = np.array(
+        [[-5, 2, 0], [5, 2, 0], [5, 2, 5], [-5, 2, 5]])
+    ptmtx = [poly_front, poly_back]
+
+    # Make camera
+    focal_length = 20
+    heading = r(0)
+    pitch = r(10)
+    cam_point = np.array([0, -30, 0])
+    cam = Pincam(cam_point, heading, pitch, focal_length)
+
+    cam.image_matrix(ptmtx)
+
+    assert False
