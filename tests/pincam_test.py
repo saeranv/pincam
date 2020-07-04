@@ -727,6 +727,14 @@ def test_image_matrix():
     cam_point = np.array([0, -30, 0])
     cam = Pincam(cam_point, heading, pitch, focal_length)
 
-    cam.image_matrix(ptmtx)
+    imgs = cam.image_matrix(ptmtx)
 
-    assert False
+    assert len(imgs) == 2
+    assert isinstance(imgs[0], np.ndarray)
+    assert isinstance(imgs[1], np.ndarray)
+
+    img = imgs[0]
+
+    assert img.shape[0] == 120  # row pixel dims
+    assert img.shape[1] == 120  # col pixel dims
+    assert img.shape[2] == 3  # rgb channels

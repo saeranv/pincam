@@ -5,6 +5,7 @@ from ladybug_geometry.geometry2d import Point2D
 from pprint import pprint as pp
 import geopandas as gpd
 import cv2
+import matplotlib.pyplot as plt
 
 
 def p2e(p):
@@ -544,8 +545,19 @@ class Pincam(object):
 
     def depth_buffer(self, ptmtx):
         """Build the depth buffer."""
-        # Build two matrices of geometries for analyis
-        geom_3d_list = self.view_frustum_geometry2(ptmtx, show_cam=False)
+
+        # Matrix of ray points to compute ray hit
+        raymtx = Pincam.ray_hit_matrix(sensor_plane_3d, res=120)
+        #raymtx: [xx, yy, zz]
+
+        # Build two matrices of geometries for analyis, one 3d, one pixels
+        geos = self.view_frustum_geometry2(ptmtx, show_cam=False)
+        imgs = self.image_matrix(ptmtx)
+
+        # - for each ray in rayhitmtx:
+        #     - for each polygon in polygon3d:
+        #         - ray_hit_polygon
+        #         - if it hits: depth_buffer = save [depth, geom_i]
 
     @staticmethod
     def project_camera_sensor_geometry(iRt, sensor_plane_3d):
@@ -607,12 +619,38 @@ class Pincam(object):
         return _ptmtx
 
     def image_matrix(self, ptmtx):
-        """Construct 2d matrix of geometries."""
+        """Construct 2d matrix of geometries.
 
-        ptmtx = Pincam.project(self.P, self.cam_point, ptmtx)
-        ptmtx = [np.array(srf) for srf in ptmtx]
-        shapes = [mu.shapely_from_srf3d(srf) for srf in ptmtx]
-        return gpd.GeoDataFrame({'geometry': shapes})
+        Args:
+            ptmtx: List of geometries.
+
+        Returns:
+            List of image matrices, with dimensions of 120 x 120 x 3
+            (row, col, rgb).
+        """
+
+        shapes = self.to_gpd_geometry(ptmtx)
+        df = gpd.GeoDataFrame({'geometry': shapes})
+
+        # Generate 2d matrices
+        for i in range(len(shapes)):
+            # Save as png
+            fig, ax = plt.subplots(1, figsize=(8,8))
+            ax.grid(False)
+            ax.axis(False)
+            ax = df.iloc[i:i + 1].plot(
+                edgecolor='black', facecolor='lightblue', lw=5, ax=ax)
+            plt.savefig('tmp_{}.png'.format(i), dpi=15)
+
+            # Read in as array
+            img = cv2.imread('tmp_{}.png'.format(i), cv2.IMREAD_COLOR)
+
+            # Reorder stacks to RGB colors
+            b, g, r = np.moveaxis(img, 2, 0)
+            img = np.dstack([r, g, b])
+            shapes[i] = img
+
+        return shapes
 
     def to_gpd_geometry(self, ptmtx):
         """Project geometries to 3d from geopandas dataframe
@@ -623,6 +661,7 @@ class Pincam(object):
         Returns:
             Dataframe with geometry.
         """
-        projected_ptmtx = self.project_by_z(ptmtx, ortho=False)
-
-        return [mu.shapely_from_srf3d(_ptmtx) for _ptmtx in projected_ptmtx]
+        #projected_ptmtx = self.project_by_z(ptmtx, ortho=False)
+        ptmtx = Pincam.project(self.P, self.cam_point, ptmtx)
+        ptmtx = [np.array(srf) for srf in ptmtx]
+        return [mu.shapely_from_srf3d(srf) for srf in ptmtx]
