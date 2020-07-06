@@ -657,6 +657,35 @@ def test_raymtx():
     assert m.shape == (10, 10, 3) # row, col, len(x,y,z)
 
 
+def test_ray_hit_plane2():
+    # Test ray plane interection
+
+    # 2 x 2 square at y=2
+    poly = np.array(
+        [[-1.,   2., -1.],
+         [ 1.,   2., -1.],
+         [ 1.,   2.,  1.],
+         [-1.,   2.,  1.]])
+    poly_origin = [0, 2, 0]
+    poly_norm=np.array([0, -1, 0])
+
+    # Check straight intersection
+    ray_pt = np.array([0, 0, 0])
+    ray_dir = np.array([0, 1, 0])
+    ipt = Pincam.ray_hit_plane2(ray_pt, ray_dir, poly_origin, poly_norm)
+    print(ipt)
+    assert np.allclose(ipt, np.array([0, 2, 0]), 1e-10)
+
+    # Check no intersection
+    ipt = Pincam.ray_hit_plane2(ray_pt, -ray_dir, poly_origin, poly_norm)
+    print(ipt)
+    assert ipt is None
+
+    # Check reverse plane still hit
+    ipt = Pincam.ray_hit_plane(ray_pt, ray_dir, poly_origin, -poly_norm)
+    assert np.allclose(ipt, np.array([0, 2, 0]), atol=1e-10)
+
+
 def test_rayhitpoly():
     # Test ray plane interection
 
@@ -746,7 +775,6 @@ def test_depth_buffer():
         [[-5, 0, 0], [5, 0, 0], [5, 0, 5], [-5, 0, 5]])
     poly_back = np.array(
         [[-5, 2, 0], [5, 2, 0], [5, 2, 5], [-5, 2, 5]])
-    ptmtx = [poly_front, poly_back]
 
     # Make camera
     focal_length = 20
@@ -756,19 +784,30 @@ def test_depth_buffer():
     cam = Pincam(cam_point, heading, pitch, focal_length)
 
     # Test
+    ptmtx = [poly_front, poly_back]
     test_depths = [1, 0]
-    depths = cam.depth_buffer(ptmtx)
-
+    _, _depths = cam.project(cam.P, ptmtx)
+    depths, _ = cam.depth_buffer(ptmtx, _depths, res=25)
     assert len(depths) == 2
-    assert np.allclose(depths, test_depths)
+    assert np.allclose(depths, test_depths, atol=1e-10)
 
 
     # Test 2
-    test_dpeths = [0, 1]
-    depths = cam.depth_buffer(ptmtx[::-1])
-
+    ptmtx = [poly_back, poly_front]
+    test_depths = [0, 1]
+    _, _depths = cam.project(cam.P, ptmtx)
+    depths, _ = cam.depth_buffer(ptmtx, _depths, res=25)
     assert len(depths) == 2
-    assert np.allclose(depths, test_depths)
+    assert np.allclose(depths, test_depths, atol=1e-10)
+
+    # Why does this fail
+    ptmtx = [poly_front, poly_back]
+    test_depths = [1, 0]
+    _depths = [0, 1]
+    depths, _ = cam.depth_buffer(ptmtx, _depths, res=25)
+    assert len(depths) == 2
+    assert np.allclose(depths, test_depths, atol=1e-10)
+
 
 
 def test_reorder_depths():

@@ -531,6 +531,35 @@ class Pincam(object):
         return np.array(r.to_array())
 
     @staticmethod
+    def ray_hit_plane2(ray_pt, ray_dir, pt_in_plane, plane_normal):
+        """
+        Toy function. For actual use, use mtx methods.
+        R = ray
+        AtRx + BtRy + CtRz = d
+        t = d/(ARx + BRy + CRz)
+        t*R = d/(ARx + BRy + CRz)*R
+        """
+        # Plane equation
+        # d = Ax + By + Cz
+        # Use dot for n-dim space
+        # norm = A,B,C
+        # d != 0 if plane doesn't intersect with origin
+        # :return: np.array(A,B,C,...), d
+
+        d = np.dot(plane_normal, pt_in_plane)
+        D = np.dot(plane_normal, ray_dir)
+
+        # Check if ray parallel to plane
+        if abs(D) < 1e-10:
+            return None
+        if D > 0.0:
+            return None
+        #k = np.dot(plane_normal, pt_in_plane)
+        #u = (k - np.dot(ray_pt)) / d
+
+        return ray_pt + np.array(ray_dir * d / D)
+
+    @staticmethod
     def ray_hit_polygon(ray_pt, ray_dir, polygon):
         """Return hit point from ray and polygon, if intersection exists
         """
@@ -538,7 +567,9 @@ class Pincam(object):
         boundary = [Point3D.from_array(p) for p in polygon]
         face = Face3D(boundary)
 
+        #ipt1 = Pincam.ray_hit_plane2(ray_pt, ray_dir, face.centroid, face.normal)
         ipt = Pincam.ray_hit_plane(ray_pt, ray_dir, face.centroid, face.normal)
+        #print(ipt1, ipt)
         if ipt is None:
             return None
 
@@ -554,7 +585,7 @@ class Pincam(object):
         ipt2d = np.matmul(ibasis_mtx, ipt - face.plane.o)
         ipt2d = Point2D(ipt2d[0], ipt2d[1])
 
-        if not poly2d.is_point_inside_check(ipt2d):
+        if not poly2d.is_point_inside(ipt2d):
             return None
 
         return np.array(ipt)
