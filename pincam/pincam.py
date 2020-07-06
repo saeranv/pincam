@@ -1,11 +1,12 @@
 import numpy as np
-from .matrix_utils2 import MatrixUtils2 as mu
+#from .matrix_utils2 import MatrixUtils2 as mu
 from ladybug_geometry.geometry3d import Point3D, Vector3D, Ray3D, Plane, Face3D
 from ladybug_geometry.geometry2d import Point2D
 from pprint import pprint as pp
 import geopandas as gpd
 import cv2
 import matplotlib.pyplot as plt
+from shapely import geometry
 
 
 def p2e(p):
@@ -24,6 +25,83 @@ def e2p(e):
     Converts to column vectors
     """
     return np.insert(e, 3, 1, 1).T
+
+
+def matmul_xforms(xforms):
+    """Multiply multiply transfromation matrices together.
+
+    This method multiplies matrices in correct post-order multiplication.
+    That is matrices are multiplied from left to right.
+
+    For example, for a typical rigid transformation where it is desired to
+    multiply rotation around Z axis, rotation around X, and translation, the
+    method does the following:
+
+    xforms: [RZ1, RX2, T1]
+    P = T1(RX2(RZ1))
+
+    Args:
+        list_of_matrices: list of matrices in sequential order.
+
+    Returns:
+        Single matrix.
+    """
+    m = xforms[0]
+    for xf in xforms[1:]:
+        m = np.matmul(xf, m)
+    return m
+
+
+def xform_translation_matrix(move_vector):
+    """
+    Modified from Christopher Gohlke
+    https://www.lfd.uci.edu/~gohlke/code/transformations.py.html
+
+    :param move_vector: 3 x 1 direction vector
+    :return: 4 x 4 translation matrix
+    [[1, 0, 0, move_vector[0]],
+    [0, 1, 0, move_vector[1]],
+    [0, 0, 1, move_vector[2]],
+    [0, 0, 0, 1.0]]
+    """
+    m = np.identity(4)
+    m[:3, 3] = move_vector[:3]
+    return m
+
+
+def xform_rotation_matrix(vector_origin, vector_axis, theta):
+    """
+    Modified from Christopher Gohlke
+    https://www.lfd.uci.edu/~gohlke/code/transformations.py.html
+    Return ndarray normalized by length, i.e. Euclidean norm, along axis.
+
+    If this doesn't work, go back to Rodriguez rotation method in matrixutils.
+    """
+
+    sina = np.sin(theta)
+    cosa = np.cos(theta)
+    vector_axis = vector_axis/np.linalg.norm(vector_axis)
+
+    # rotation matrix around unit vector
+    R = np.diag([cosa, cosa, cosa])
+    R += np.outer(vector_axis, vector_axis) * (1.0 - cosa)
+    vector_axis *= sina
+    R += np.array([[ 0.0,         -vector_axis[2],  vector_axis[1]],
+                    [ vector_axis[2], 0.0,          -vector_axis[0]],
+                    [-vector_axis[1], vector_axis[0],  0.0]])
+    M = np.identity(4)
+    M[:3, :3] = R
+
+    if vector_origin is not None:
+        # rotation not around origin
+        M[:3, 3] = vector_origin - np.dot(R, vector_origin)
+
+    return M
+
+
+def shapely_from_srf3d(srf):
+    """ Srf cab be 3dm shapely init will automatically remove extra dims"""
+    return geometry.Polygon(srf[:, :2])
 
 
 class Pincam(object):
@@ -135,17 +213,17 @@ class Pincam(object):
         # TODO: Invert all of this
         # Make Rz matrix
         z_axis = np.array([0, 0, 1])
-        Rz = mu.xform_rotation_matrix(origin, z_axis, heading)
+        Rz = xform_rotation_matrix(origin, z_axis, heading)
 
         # Make Rx matrix
         x_axis = np.array([1, 0, 0])
-        Rx = mu.xform_rotation_matrix(origin, x_axis, pitch)
+        Rx = xform_rotation_matrix(origin, x_axis, pitch)
 
         # Make translation matrix
-        T = mu.xform_translation_matrix(cam_posn)
+        T = xform_translation_matrix(cam_posn)
 
         # Multiply
-        Rt = mu.matmul_xforms([Rz, Rx, T])
+        Rt = matmul_xforms([Rz, Rx, T])
 
         return Rt
 
@@ -245,7 +323,7 @@ class Pincam(object):
         it = Pincam._invert_extrinsic_matrix_translation(Rt)
         iR = Pincam._invert_extrinsic_matrix_rotation(Rt)
 
-        return mu.matmul_xforms([it, iR])
+        return matmul_xforms([it, iR])
 
     @staticmethod
     def projection_matrix(focal_length, heading, pitch, cam_point):
@@ -384,7 +462,7 @@ class Pincam(object):
         return xsurface[:, :3]
 
     @staticmethod
-    def project(P, cam_posn, geometries):
+    def project(P, geometries):
         """
         TBD
         """
@@ -396,35 +474,42 @@ class Pincam(object):
         ptmtx = e2p(ptmtx)
         xptmtx = np.matmul(P, ptmtx)
 
-        furthest_depths = [max(warr) for warr in np.split(xptmtx[2], idx)]
+        furthest_depths = [np.min(warr) for warr in np.split(xptmtx[2], idx)]
 
-        ordered_depths = np.argsort(furthest_depths)[::-1]
-
+        ordered_depths = np.argsort(furthest_depths)
         xptmtx = p2e(xptmtx)
 
         # Split and sort by z buffer
         xgeometries = np.array(np.split(xptmtx, idx))
 
-        return xgeometries[ordered_depths].tolist()
+        return xgeometries, ordered_depths[::-1].tolist()
 
     @staticmethod
     def ray_hit_matrix(sensor_plane_3d, res=10):
-        """Ray hit matrix"""
+        """Ray hit matrix
 
+        Args:
+            res: Integer with integer square root.
+        """
         p = sensor_plane_3d
-
+        res -= 1
         # Principal point at origin at 0,0,0
         # Sensor plane is square matrix
         minb, maxb = np.min(p), np.max(p)
-        step = (maxb - minb) / res
-        xx, zz = np.meshgrid(
-            np.arange(minb, maxb + 1, step),
-            np.arange(minb, maxb + 1, step))
+        step = (maxb - minb) / (res + 1)
 
+        xx, zz = np.meshgrid(
+            np.arange(minb, maxb, step),
+            np.arange(minb, maxb, step))
+
+        assert abs((res ** 0.5)** 2 - res) < 1e-10, \
+            'res must be an integer with integer root. Got {}.'.format(res)
         res += 1
         yy = np.zeros(res * res).reshape((res, res))
 
-        return [xx, yy, zz]
+        # np.stack will create a third axis and stack everything on that
+        # so shape will be: rows, cols, 3.
+        return np.dstack([xx, yy, zz])
 
     @staticmethod
     def ray_hit_plane(ray_pt, ray_dir, plane_origin, plane_normal):
@@ -474,21 +559,59 @@ class Pincam(object):
 
         return np.array(ipt)
 
-    def depth_buffer(self, ptmtx):
+    def depth_buffer(self, ptmtx, default_depths, res=64):
         """Build the depth buffer."""
 
+        default_depths = default_depths[::-1]  # closest geos first
+
         # Matrix of ray points to compute ray hit
-        raymtx = Pincam.ray_hit_matrix(sensor_plane_3d, res=120)
-        #raymtx: [xx, yy, zz]
+        raymtx = Pincam.ray_hit_matrix(self.sensor_plane_ptmtx_3d, res=res)
+        #raymtx: np.dstack([xx, yy, zz]) = (row, col, 3)
 
         # Build two matrices of geometries for analyis, one 3d, one pixels
         geos = self.view_frustum_geometry2(ptmtx, show_cam=False)
-        imgs = self.image_matrix(ptmtx)
+        #geos = np.array(geos)
 
-        # - for each ray in rayhitmtx:
-        #     - for each polygon in polygon3d:
-        #         - ray_hit_polygon
-        #         - if it hits: depth_buffer = save [depth, geom_i]
+        # Get geos closest to camera
+        depth_idx = default_depths[:]
+        rownum, colnum, _ = raymtx.shape
+        depth_buffer = np.ones(rownum * colnum * 3).reshape(rownum, colnum, 3)
+        depth_buffer *= -1
+        ray_dir = np.array([0, 1, 0])
+        for i in range(rownum):
+            for j in range(colnum):
+                x, y, z = raymtx[i, j, :]
+                ray_pt = np.array([x, y, z])
+                for k, geo in enumerate(geos):
+                    hitpt = Pincam.ray_hit_polygon(ray_pt, ray_dir, geo)
+
+                    if hitpt is None:
+                        continue
+
+                    cur_depth = hitpt[1]  # ydim is depth
+                    min_depth = depth_buffer[i, j, 0]
+                    cur_geo = k
+                    min_geo = depth_buffer[i, j, 1]
+
+                    if min_depth < 0:
+                        depth_buffer[i, j, :] = [cur_depth, cur_geo, cur_geo+2]
+                    elif cur_depth < min_depth:
+                        depth_buffer[i, j, :] = [cur_depth, cur_geo, 9]
+                        depth_idx = Pincam.reorder_depths(depth_idx, cur_geo, min_geo)
+
+        return depth_idx[::-1], depth_buffer
+
+    @staticmethod
+    def reorder_depths(depth_idx, cur_geo, min_geo):
+        """Reorder depths."""
+        min_idx = depth_idx.index(min_geo)
+        cur_idx = depth_idx.index(cur_geo)
+
+        if cur_idx < min_idx:
+            return depth_idx
+        depth_idx.pop(cur_idx)
+        depth_idx.insert(min_idx, cur_geo)
+        return depth_idx
 
     @staticmethod
     def project_camera_sensor_geometry(iRt, sensor_plane_3d):
@@ -540,7 +663,6 @@ class Pincam(object):
         """
 
         _ptmtx = ptmtx
-
         # Project sensor, surface geometries in 3d
         _ptmtx = [Pincam.project3d(self.P, pts) for pts in _ptmtx]
 
@@ -549,7 +671,7 @@ class Pincam(object):
 
         return _ptmtx
 
-    def image_matrix(self, ptmtx):
+    def image_matrix(self, ptmtx, inches=10, dpi=10):
         """Construct 2d matrix of geometries.
 
         Args:
@@ -566,12 +688,12 @@ class Pincam(object):
         # Generate 2d matrices
         for i in range(len(shapes)):
             # Save as png
-            fig, ax = plt.subplots(1, figsize=(8,8))
+            fig, ax = plt.subplots(1, figsize=(inches, inches))
             ax.grid(False)
             ax.axis(False)
             ax = df.iloc[i:i + 1].plot(
                 edgecolor='black', facecolor='lightblue', lw=5, ax=ax)
-            plt.savefig('tmp_{}.png'.format(i), dpi=15)
+            plt.savefig('tmp_{}.png'.format(i), dpi=dpi)
 
             # Read in as array
             img = cv2.imread('tmp_{}.png'.format(i), cv2.IMREAD_COLOR)
@@ -583,7 +705,7 @@ class Pincam(object):
 
         return shapes
 
-    def to_gpd_geometry(self, ptmtx):
+    def to_gpd_geometry(self, ptmtx, res=25):
         """Project geometries to 3d from geopandas dataframe
 
         Args:
@@ -592,7 +714,37 @@ class Pincam(object):
         Returns:
             Dataframe with geometry.
         """
-        #projected_ptmtx = self.project_by_z(ptmtx, ortho=False)
-        ptmtx = Pincam.project(self.P, self.cam_point, ptmtx)
-        ptmtx = [np.array(srf) for srf in ptmtx]
-        return [mu.shapely_from_srf3d(srf) for srf in ptmtx]
+        xptmtx, _depths = Pincam.project(self.P, ptmtx)
+        depths, _ = self.depth_buffer(ptmtx, _depths, res=res)
+        xptmtx = xptmtx[depths]
+        return [shapely_from_srf3d(np.array(srf)) for srf in xptmtx]
+
+
+if __name__ == "__main__":
+    # For profiling:
+    #  python -m cProfile -s time pincam/pincam.py >> profile.txt
+    # 13.105 seconds (raw)
+    r = lambda d: d / 180.0 * np.pi
+
+    # Define surfaces
+    bot_srf = np.array(
+        [[-5, -5, 0], [5, -5, 0], [5, 5, 0], [-5, 5, 0]])
+    top_srf = np.array(
+        [[-5, -5, 10], [5, -5, 10], [5, 5, 10], [-5, 5, 10]])
+    y = 0
+    vrt_srf = np.array(
+        [[-4, y, 0], [4, y, 0], [4, y, 6], [0, y, 10], [-4, y, 6]])
+    ptmtx = [bot_srf, top_srf, vrt_srf]
+
+    # Define camera
+    focal_length = 20
+    heading = r(145)
+    pitch = r(0)
+    cam_point = np.array([0, -25, 7])
+    cam = Pincam(cam_point, heading, pitch, focal_length)
+
+    # Define xptmtx
+    res = 64
+    xptmtx, _depths = cam.project(cam.P, ptmtx)
+    depths, db = cam.depth_buffer(ptmtx, _depths, res=res)
+

@@ -643,14 +643,18 @@ def test_raymtx():
         [[-5, -5, -5],
          [ 0,  0,  0],
          [ 5,  5,  5]]) * 10.0
-    check_m = [xx, yy, zz]
+    check_m = np.dstack([xx, yy, zz])
 
     # Test
-    m = cam.ray_hit_matrix(cam.sensor_plane_ptmtx_3d, res=2)
-
-    assert len(m) == 3
+    m = cam.ray_hit_matrix(cam.sensor_plane_ptmtx_3d, res=3)
+    pp(m[:,:,0])
+    assert m.shape == (3, 3, 3) # row, col, len(x,y,z)
     for i in range(3):
-        assert np.allclose(m[i], check_m[i], atol=1e-10)
+        assert np.allclose(m[:,:,i], check_m[:,:,i], atol=1e-10)
+
+    # Test with higher res
+    m = cam.ray_hit_matrix(cam.sensor_plane_ptmtx_3d, res=10)
+    assert m.shape == (10, 10, 3) # row, col, len(x,y,z)
 
 
 def test_rayhitpoly():
@@ -691,26 +695,6 @@ def test_rayhitpoly():
     assert ipt is None
 
 
-def test_depth_buffer():
-    """Test building depth buffer."""
-
-    poly_front = np.array(
-        [[-5, 0, 0], [5, 0, 0], [5, 0, 5], [-5, 0, 5]])
-    poly_back = np.array(
-        [[-5, 2, 0], [5, 2, 0], [5, 2, 5], [-5, 2, 5]])
-    ptmtx = [poly_front, poly_back]
-
-    # Make camera
-    focal_length = 20
-    heading = r(0)
-    pitch = r(10)
-    cam_point = np.array([0, -10, 0])
-    cam = Pincam(cam_point, heading, pitch, focal_length)
-
-    cam.depth_buffer(ptmtx)
-
-    assert False
-
 def test_image_matrix():
     """Test image matrix."""
 
@@ -727,7 +711,7 @@ def test_image_matrix():
     cam_point = np.array([0, -30, 0])
     cam = Pincam(cam_point, heading, pitch, focal_length)
 
-    imgs = cam.image_matrix(ptmtx)
+    imgs = cam.image_matrix(ptmtx, inches=8, dpi=15)
 
     assert len(imgs) == 2
     assert isinstance(imgs[0], np.ndarray)
@@ -738,3 +722,73 @@ def test_image_matrix():
     assert img.shape[0] == 120  # row pixel dims
     assert img.shape[1] == 120  # col pixel dims
     assert img.shape[2] == 3  # rgb channels
+
+
+    # 100 x 100 default
+    imgs = cam.image_matrix(ptmtx, inches=10, dpi=10)
+
+    assert len(imgs) == 2
+    assert isinstance(imgs[0], np.ndarray)
+    assert isinstance(imgs[1], np.ndarray)
+
+    img = imgs[0]
+
+    assert img.shape[0] == 100  # row pixel dims
+    assert img.shape[1] == 100  # col pixel dims
+    assert img.shape[2] == 3  # rgb channels
+
+
+
+def test_depth_buffer():
+    """Test building depth buffer."""
+
+    poly_front = np.array(
+        [[-5, 0, 0], [5, 0, 0], [5, 0, 5], [-5, 0, 5]])
+    poly_back = np.array(
+        [[-5, 2, 0], [5, 2, 0], [5, 2, 5], [-5, 2, 5]])
+    ptmtx = [poly_front, poly_back]
+
+    # Make camera
+    focal_length = 20
+    heading = r(0)
+    pitch = r(10)
+    cam_point = np.array([0, -10, 0])
+    cam = Pincam(cam_point, heading, pitch, focal_length)
+
+    # Test
+    test_depths = [1, 0]
+    depths = cam.depth_buffer(ptmtx)
+
+    assert len(depths) == 2
+    assert np.allclose(depths, test_depths)
+
+
+    # Test 2
+    test_dpeths = [0, 1]
+    depths = cam.depth_buffer(ptmtx[::-1])
+
+    assert len(depths) == 2
+    assert np.allclose(depths, test_depths)
+
+
+def test_reorder_depths():
+    """Test reordering depth buffer"""
+
+    depths = [1, 2, 3, 4]
+    cur_geo = 2
+    min_geo = 1
+
+    test_depths = [2, 1, 3, 4]
+    depths = Pincam.reorder_depths(depths, cur_geo, min_geo)
+
+    assert np.allclose(test_depths, depths, atol=1e-10)
+
+    # Now assume 3 is min
+    depths = [2, 1, 3, 4]
+    cur_geo = 3
+    min_geo = 2
+
+    test_depths = [3, 2, 1, 4]
+    depths = Pincam.reorder_depths(depths, cur_geo, min_geo)
+
+    assert np.allclose(test_depths, depths, atol=1e-10)
