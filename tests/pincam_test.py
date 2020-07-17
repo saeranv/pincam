@@ -237,17 +237,21 @@ def test_intrinsic_matrix():
     """Intrinsic matrix"""
 
     # Hardcode parameters
-    fov = r(45)
-    sensor_width = 2 * np.tan(fov / 2.0) * 0.1
-    S = 0.1 * (100. / sensor_width) / 100.
-    cx, cy = 0, 0
+    flen = 18.0
+    sensor_world_width = 23.6
+    sensor_pixel_res = 100.0
+
+    # K
+    sensor_pixel_width = sensor_world_width / sensor_pixel_res
+    S = (flen * sensor_world_width) * sensor_pixel_width
+    c = 0
 
     K = np.array([
-        [S,  0,  cx,  0],
-        [0,  S,  cy,  0],
-        [0,  0,  1,   0]])
+        [S,  0,  c,  0],
+        [0,  S,  c,  0],
+        [0,  0,  1,  0]])
 
-    chk_K = cam.intrinsic_matrix(fov)
+    chk_K = cam.intrinsic_matrix(flen=flen, principle_point=(0, 0))
 
     assert np.allclose(K, chk_K, atol=1e-5)
 
