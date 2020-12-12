@@ -18,7 +18,7 @@ def load_fixture_array(fpath):
     with open(fpath, 'r') as f:
         fixdata = json.loads(f.read())
 
-    return np.array(fixdata)
+    return fixdata
 
 
 def write_fixture_array(fpath, arr):
@@ -32,31 +32,32 @@ def write_fixture_array(fpath, arr):
 def test_basic_transform():
     """To grok order"""
     mtx1 = np.array([
-        [1,  0,  0,  0],
-        [0,  0,  3,  0],
-        [0,  2,  0,  0],
-        [0,  0,  0,  1]
+        [1, 0, 0, 0],
+        [0, 0, 3, 0],
+        [0, 2, 0, 0],
+        [0, 0, 0, 1]
     ])
 
     mtx2 = np.array([
-        [1,  0,  0,  0],
-        [0,  1,  0,  5],
-        [0,  0,  1,  10],
-        [0,  0,  0,  1]
+        [1, 0, 0, 0],
+        [0, 1, 0, 5],
+        [0, 0, 1, 10],
+        [0, 0, 0, 1]
     ])
 
     refmtx = np.array([
-        [1,  0,  0,  0],
-        [0,  0,  3,  5],
-        [0,  2,  0,  10],
-        [0,  0,  0,  1]
+        [1, 0, 0, 0],
+        [0, 0, 3, 5],
+        [0, 2, 0, 10],
+        [0, 0, 0, 1]
     ])
 
     # Current attempt with points, doesn't work on matrices
     out1 = np.matmul(mtx1, mtx2.T).T
     assert not np.allclose(out1, refmtx)
 
-    out2 = mtx1.dot(mtx2)  # Won't work b/c matrix multiplication is from left to right
+    # Won't work b/c matrix multiplication is from left to right
+    out2 = mtx1.dot(mtx2)
     assert not np.allclose(out2, refmtx, 1e-10)
 
     out3 = mtx2.dot(mtx1)  # Correct order
@@ -71,10 +72,10 @@ def test_rotation_transform():
     """ Test rotation matrix"""
     # Rotation around x axis by 90
     ref_rmtxX = np.array([
-        [1,  0,  0,  0],
-        [0,  0, -1,  0],
-        [0,  1,  0,  0],
-        [0,  0,  0,  1]
+        [1, 0, 0, 0],
+        [0, 0, -1, 0],
+        [0, 1, 0, 0],
+        [0, 0, 0, 1]
     ])
 
     origin = np.array([0, 0, 0])
@@ -85,10 +86,10 @@ def test_rotation_transform():
 
     # Rotation around z acis by 180
     ref_rmtxZ = np.array([
-        [-1,  0,  0,  0],
-        [ 0, -1,  0,  0],
-        [ 0,  0,  1,  0],
-        [ 0,  0,  0,  1]
+        [-1, 0, 0, 0],
+        [0, -1, 0, 0],
+        [0, 0, 1, 0],
+        [0, 0, 0, 1]
     ])
 
     axis = np.array([0, 0, 1])
@@ -102,18 +103,18 @@ def test_world_to_camera_transform():
 
     # Collection of points that we are going to flip to camera pose
     points = np.array([
-        [0,  0,  4,  1],
-        [2,  0,  0,  1],
-        [0,  3,  0,  1],
-        [1,  1,  0,  1]
+        [0, 0, 4, 1],
+        [2, 0, 0, 1],
+        [0, 3, 0, 1],
+        [1, 1, 0, 1]
     ])
 
     # Invert x, swap y, z
     chk_points = np.array([
-        [ 0,  4,  0,  1],
-        [-2,  0,  0,  1],
-        [ 0,  0,  3,  1],
-        [-1,  0,  1,  1]
+        [0, 4, 0, 1],
+        [-2, 0, 0, 1],
+        [0, 0, 3, 1],
+        [-1, 0, 1, 1]
     ])
 
     # Test
@@ -129,18 +130,18 @@ def test_camera_to_world_transform():
 
     # Collection of points that we are going to flip to camera pose
     world_points = np.array([
-        [0,  0,  4,  1],
-        [2,  0,  0,  1],
-        [0,  3,  0,  1],
-        [1,  1,  0,  1]
+        [0, 0, 4, 1],
+        [2, 0, 0, 1],
+        [0, 3, 0, 1],
+        [1, 1, 0, 1]
     ])
 
     # Invert x, swap y, z
     cam_points = np.array([
-        [ 0,  4,  0,  1],
-        [-2,  0,  0,  1],
-        [ 0,  0,  3,  1],
-        [-1,  0,  1,  1]
+        [0, 4, 0, 1],
+        [-2, 0, 0, 1],
+        [0, 0, 3, 1],
+        [-1, 0, 1, 1]
     ])
 
     # Test
@@ -158,36 +159,35 @@ def test_post_order_transform_multiplication():
 
     # Translation 0, 5, 10
     ref_tmtx = np.array([
-        [1,  0,  0,  0],
-        [0,  1,  0,  5],
-        [0,  0,  1,  10],
-        [0,  0,  0,  1]
+        [1, 0, 0, 0],
+        [0, 1, 0, 5],
+        [0, 0, 1, 10],
+        [0, 0, 0, 1]
     ])
 
     # Rotation around x axis by 90
     ref_rmtxX = np.array([
-        [1,  0,  0,  0],
-        [0,  0, -1,  0],
-        [0,  1,  0,  0],
-        [0,  0,  0,  1]
+        [1, 0, 0, 0],
+        [0, 0, -1, 0],
+        [0, 1, 0, 0],
+        [0, 0, 0, 1]
     ])
 
     # Rotation around z acis by 180
     ref_rmtxZ = np.array([
-        [-1,  0,  0,  0],
-        [ 0, -1,  0,  0],
-        [ 0,  0,  1,  0],
-        [ 0,  0,  0,  1]
+        [-1, 0, 0, 0],
+        [0, -1, 0, 0],
+        [0, 0, 1, 0],
+        [0, 0, 0, 1]
     ])
 
     # Output matrix
     ref_emtx = np.array([
-        [-1,  0,  0,  0],
-        [ 0,  0, -1,  5],
-        [ 0, -1,  0, 10],
-        [ 0,  0,  0,  1]
+        [-1, 0, 0, 0],
+        [0, 0, -1, 5],
+        [0, -1, 0, 10],
+        [0, 0, 0, 1]
     ])
-
 
     # Test combination of xforms
     # Order for rigid xforms, by convention:
@@ -214,10 +214,10 @@ def test_extrinsic_matrix():
 
     v = 0.7071067811865476  # sin(45) and cos(45)
     chk_Rt = np.array([
-        [ 1,  0,  0,  0],
-        [ 0,  v, -v,  0],
-        [ 0,  v,  v, -5],
-        [ 0,  0,  0,  1]])
+        [1, 0, 0, 0],
+        [0, v, -v, 0],
+        [0, v, v, -5],
+        [0, 0, 0, 1]])
 
     assert np.allclose(Rt, chk_Rt, atol=1e-5)
 
@@ -225,10 +225,10 @@ def test_extrinsic_matrix():
     wc = cam.world_to_camera_matrix()
     Rtc = np.matmul(wc, Rt)
     chk_Rtc = np.array([
-        [ -1,  0,  0,  0],
-        [  0,  v,  v, -5],
-        [  0,  v, -v,  0],
-        [  0, 0, 0, 1]])
+        [-1, 0, 0, 0],
+        [0, v, v, -5],
+        [0, v, -v, 0],
+        [0, 0, 0, 1]])
 
     assert np.allclose(Rtc, chk_Rtc, atol=1e-5)
 
@@ -247,9 +247,9 @@ def test_intrinsic_matrix():
     c = 0
 
     K = np.array([
-        [S,  0,  c,  0],
-        [0,  S,  c,  0],
-        [0,  0,  1,  0]])
+        [S, 0, c, 0],
+        [0, S, c, 0],
+        [0, 0, 1, 0]])
 
     chk_K = cam.intrinsic_matrix(flen=flen, principle_point=(0, 0))
 
@@ -262,24 +262,24 @@ def test_perspective_projection_transform():
     w = 1.4142
     m = w + v
     Rtc = np.array([
-        [-1,  0,  0,  0 ],
-        [ 0,  v,  v, -5 ],
-        [ 0,  v, -v, -10],
-        [ 0,  0,  0,  1 ]
+        [-1, 0, 0, 0],
+        [0, v, v, -5],
+        [0, v, -v, -10],
+        [0, 0, 0, 1]
     ])
     K = np.array([
-        [2,  0,  1,  0],
-        [0,  2,  1,  0],
-        [0,  0,  1,  0]
+        [2, 0, 1, 0],
+        [0, 2, 1, 0],
+        [0, 0, 1, 0]
     ])
 
     # Check projection matrix
     P = np.matmul(K, Rtc)
 
     chk_P = np.array([
-        [-2,  v,  -v, -10 ],
-        [ 0,  m,   v, -20 ],
-        [ 0,  v,  -v, -10]
+        [-2, v, -v, -10],
+        [0, m, v, -20],
+        [0, v, -v, -10]
     ])
 
     assert np.allclose(P, chk_P, atol=1e-5)
@@ -291,8 +291,8 @@ def test_perspective_projection_transform():
     ])
 
     chk_prj = np.array([
-        [ 0, -20, -10],
-        [ 3.5355, -9.3935, -6.4645]
+        [0, -20, -10],
+        [3.5355, -9.3935, -6.4645]
     ])
     prj = np.matmul(P, seg_left.T).T
 
@@ -302,15 +302,15 @@ def test_perspective_projection_transform():
 def test_zbuffer():
     """Testing ordering of surfaces from zbuffering"""
 
-    fov = r(45)
+    flen = 18
     heading = 0
     pitch = 45
     cam_posn = np.array([0, -5, 10])
-    P = cam.projection_matrix(fov, heading, pitch, cam_posn)
+    P = cam.projection_matrix(flen, heading, pitch, cam_posn)
 
     # Test ordering of points in center
     seg_center = np.array([
-        [0, 0, 0, 1], # pt_front
+        [0, 0, 0, 1],  # pt_front
         [0, 5, 0, 1]  # pt_back
     ])
 
@@ -329,11 +329,9 @@ def test_zbuffer():
     # confirm x coincident w/ principle point
     assert np.abs(pt_front[0]) < 1e-10 and np.abs(pt_back[0]) < 1e-10
 
-
-
     # Test ordering of points to left
     seg_left = np.array([
-        [-5, 0, 0, 1], # pt_front
+        [-5, 0, 0, 1],  # pt_front
         [-5, 5, 0, 1]  # pt_back
     ])
 
@@ -342,29 +340,29 @@ def test_zbuffer():
     pt_front = prj_left[0] / w[0]
     pt_back = prj_left[1] / w[1]
 
-    # pp(pt_front)
-    # pp(pt_back)
+    pp(pt_front)  # center
+    pp(pt_back)  # to left
 
     # z coordinate of front point should be less then back
     assert pt_front[1] < pt_back[1]
     # x coordinate of front should be < back
-    assert pt_front[0] < pt_back[0]
+    assert pt_front[0] > pt_back[0]
 
 
 def test_bounding_box():
     # Calculate bbox from matrix of points
     ptmtx = np.array([
-        [-10, 10,   0],
-        [10,   5,  20],
-        [10,   5,  20],
-        [3,   12, -20]
+        [-10, 10, 0],
+        [10, 5, 20],
+        [10, 5, 20],
+        [3, 12, -20]
     ])
 
     chk_bbox = np.array([
         [[-10, 12, -20], [10, 12, -20],
          [10, 5, -20], [-10, 5, -20]],
         [[-10, 5, 20], [10, 5, 20],
-         [10, 12,  20], [-10, 12,  20]]
+         [10, 12, 20], [-10, 12, 20]]
     ])
 
     bbox = cam._bounding_box(ptmtx)
@@ -375,20 +373,28 @@ def test_bounding_box():
 def test_single_plane_bounding_box():
     # Test bounding box when you get one surface
     ptmtx = np.array(
-        [[-4, 0, 0], [4, 0, 0], [4, 0, 6], [0, 0, 10], [-4, 0, 6]]
+        [[-4, 0, 0], [4, 0, 0], [4, 0, 6], [-4, 0, 6]]
     )
 
     bot, top = cam._bounding_box(ptmtx)
 
     # Single line
-    # np.array(
-    #     [[-4,  0,  0],
-    #      [ 4,  0,  0],
-    #      [ 4,  0,  0],
-    #      [-4, 0, 0]]
-    # )
+    chkbot = np.array(
+        [[-4, 0, 0],
+         [4, 0, 0],
+         [4, 0, 0],
+         [-4, 0, 0]]
+    )
 
-    assert False
+    chktop = np.array(
+        [[-4, 0, 6],
+         [4, 0, 6],
+         [4, 0, 6],
+         [-4, 0, 6]]
+    )
+
+    assert np.allclose(chkbot, bot, 1e-10)
+    assert np.allclose(chktop, top, 1e-10)
 
 
 def test_surface_normal():
@@ -411,35 +417,40 @@ def test_simple_view_factor():
     srf = np.array([
         [-5, 0, 0], [5, 0, 0], [5, 0, 10], [-5, 0, 10]
     ])
-    r = lambda d: d / 180. * np.pi
-    fov = r(35)
+
+    flen = 18
     heading = 0
     pitch = 0
     cam_posn = np.array([0, -10, 5])
-    P, Rtc = cam.projection_matrix(fov, 2, heading, pitch, cam_posn.copy())
+    P = cam.projection_matrix(flen, heading, pitch, cam_posn.copy())
 
-    view_factor = cam.view_factor(Rtc, srf) > 0.0
-    assert view_factor == True
+    view_factor = cam.view_factor(P, srf) > 0.0
+    assert cam._surface_normal(srf)[1] < 0.0
+    assert view_factor
 
-    view_factor = cam.view_factor(Rtc, srf[::-1]) > 0.0
-    assert view_factor == False
+    view_factor = cam.view_factor(P, srf[::-1]) > 0.0
+    assert cam._surface_normal(srf[::-1])[1] > 0.0
+    assert not view_factor
 
     # Test view of simple horizontal plane with no rotation
     srf = np.array([
         [-5, -5, 0], [5, -5, 0], [5, 5, 0], [-5, 5, 0]
     ])
-    r = lambda d: d / 180. * np.pi
-    fov = r(35)
+
+    flen = 18
     heading = 0
     pitch = 0
     cam_posn = np.array([0, -10, 5])
-    P, Rtc = cam.projection_matrix(fov, 2, heading, pitch, cam_posn.copy())
-    # Should be exactly perpendicular
-    view_factor = cam.view_factor(Rtc, srf) > 0.0
-    assert view_factor == True
+    P = cam.projection_matrix(flen, heading, pitch, cam_posn.copy())
 
-    view_factor = cam.view_factor(Rtc, srf[::-1]) > 0.0
-    assert view_factor == False
+    # Should be exactly perpendicular
+    view_factor = cam.view_factor(P, srf) > 0.0
+    assert cam._surface_normal(srf)[2] > 0.0
+    assert view_factor
+
+    view_factor = cam.view_factor(P, srf[::-1]) > 0.0
+    assert cam._surface_normal(srf[::-1])[2] < 0.0
+    assert not view_factor
 
 
 def test_complex_view_factor():
@@ -453,51 +464,50 @@ def test_complex_view_factor():
     ])
 
     # P matrix see inner face of bottom and top faces
-    r = lambda d: d / 180. * np.pi
-    fov = r(35)
+    flen = 18
     heading = r(45)
     pitch = r(-10)
     cam_posn = np.array([0, -15, 7])
-    P, Rtc = cam.projection_matrix(fov, 2, heading, pitch, cam_posn.copy())
+    P = cam.projection_matrix(flen, heading, pitch, cam_posn.copy())
 
     view_factor = cam.view_factor(P, bot_srf) > 0.0
-    assert view_factor == True
+    assert view_factor
 
     view_factor = cam.view_factor(P, bot_srf[::-1]) > 0.0
-    assert view_factor == False
+    assert not view_factor
 
     # Look at top surface
     view_factor = cam.view_factor(P, top_srf) > 0.0
-    assert view_factor == False
+    assert not view_factor
 
     view_factor = cam.view_factor(P, top_srf[::-1]) > 0.0
-    assert view_factor == True
+    assert view_factor
 
     # Look at underside of bottom surface
     pitch = r(-55)
-    P, Rtc = cam.projection_matrix(fov, 2, heading, pitch, cam_posn.copy())
+    P = cam.projection_matrix(flen, heading, pitch, cam_posn.copy())
 
     view_factor = cam.view_factor(P, bot_srf) > 0.0
-    assert view_factor == False
+    assert not view_factor
 
     view_factor = cam.view_factor(P, bot_srf[::-1]) > 0.0
-    assert view_factor == True
+    assert view_factor
 
     # P matrix see inner face of bottom and top faces
     pitch = r(35)
-    P, Rtc = cam.projection_matrix(fov, 2, heading, pitch, cam_posn.copy())
+    P = cam.projection_matrix(flen, heading, pitch, cam_posn.copy())
 
     view_factor = cam.view_factor(P, bot_srf) > 0.0
-    assert view_factor == True
+    assert view_factor
 
     view_factor = cam.view_factor(P, bot_srf[::-1]) > 0.0
-    assert view_factor == False
+    assert not view_factor
 
     view_factor = cam.view_factor(P, top_srf) > 0.0
-    assert view_factor == True
+    assert view_factor
 
     view_factor = cam.view_factor(P, top_srf[::-1]) > 0.0
-    assert view_factor == False
+    assert not view_factor
 
 
 def test_simple_snapshot():
@@ -518,15 +528,16 @@ def test_simple_snapshot():
     pitch = r(25)
     cam_point = np.array([0, -35, 4])
 
+    # Ignore order for now.
     cam = Pincam(cam_point, heading, pitch, focal_len)
-    xgeoms = cam.project_by_z(geoms, False)
+    xgeoms, depths = cam.project(cam.P, geoms)
 
-    # Define the xgeoms we should get, in correct order
+    # Define the xgeoms. Not ordered
     fpath = os.path.join('tests', 'fixtures', 'simple_snapshot_surfaces.json')
     chk_xgeoms = load_fixture_array(fpath)
 
     # Assert
-    for xgeom, chk_xgeom in zip(xgeoms, chk_xgeoms):
+    for i, (xgeom, chk_xgeom) in enumerate(zip(xgeoms, chk_xgeoms)):
         assert np.allclose(xgeom, chk_xgeom, atol=1e-10)
 
 
@@ -549,28 +560,28 @@ def test_invert_extrinsic():
 
     # Make test matrices
     test_t = np.array(
-        [[ 1.,          0.,          0.        ,  0.        ],
-         [ 0.,          1.,          0.        ,-35.        ],
-         [ 0.,          0.,          1.        ,  4.        ],
-         [ 0.,          0.,          0.        ,  1.        ]])
+        [[1., 0., 0., 0.],
+         [0., 1., 0., -35.],
+         [0., 0., 1., 4.],
+         [0., 0., 0., 1.]])
 
     test_R = np.array(
-        [[ 0.70710678,  0.70710678,  0.        ,  0.        ],
-         [-0.70710678,  0.70710678,  0.        ,  0.        ],
-         [ 0.        ,  0.        ,  1.        ,  0.        ],
-         [ 0.,          0. ,         0.        ,  1.        ]])
+        [[0.70710678, 0.70710678, 0., 0.],
+         [-0.70710678, 0.70710678, 0., 0.],
+         [0., 0., 1., 0.],
+         [0., 0., 0., 1.]])
 
     # test_t x test_R (Note that order is reversed)
     test_Rt = np.array(
-        [[ 0.70710678,  0.70710678,  0.        ,-24.7487373],
-         [-0.70710678,  0.70710678,  0.        ,-24.7487373],
-         [ 0.        ,  0.        ,  1.        ,  4.       ],
-         [ 0.,          0. ,         0.        ,  1.       ]])
+        [[0.70710678, 0.70710678, 0., -24.7487373],
+         [-0.70710678, 0.70710678, 0., -24.7487373],
+         [0., 0., 1., 4.],
+         [0., 0., 0., 1.]])
 
     # Test
     assert np.allclose(
-       Pincam._invert_extrinsic_matrix_translation(Rt),
-       test_t, atol=1e-5)
+        Pincam._invert_extrinsic_matrix_translation(Rt),
+        test_t, atol=1e-5)
 
     assert np.allclose(
         Pincam._invert_extrinsic_matrix_rotation(Rt),
@@ -603,14 +614,15 @@ def test_project_camera_sensor_geometry():
     cam_pts = Pincam.project_camera_sensor_geometry(
         iRt, cam.sensor_plane_ptmtx_3d)
     test_cam_pts = np.array(
-        [[-50.        , -52.99875777, -41.42621966],
-         [ 50.        , -52.99875777, -41.42621966],
-         [ 50.        , -35.63394   ,  57.05455565],
-         [-50.        , -35.63394   ,  57.05455565],
-         [-50.        , -52.99875777, -41.42621966]])
+        [[-50., -52.99875777, -41.42621966],
+         [50., -52.99875777, -41.42621966],
+         [50., -35.63394, 57.05455565],
+         [-50., -35.63394, 57.05455565],
+         [-50., -52.99875777, -41.42621966]])
 
     # Test
     assert np.allclose(cam_pts, test_cam_pts, atol=7)
+
 
 def test_raymtx():
     """Make raymtx from camera sensor plane"""
@@ -639,26 +651,26 @@ def test_raymtx():
          [-5, 0, 5]]) * 10.0
 
     yy = np.array(
-        [[ 0,  0,  0],
-         [ 0,  0,  0],
-         [ 0,  0,  0]]) * 10.0
+        [[0, 0, 0],
+         [0, 0, 0],
+         [0, 0, 0]]) * 10.0
 
     zz = np.array(
         [[-5, -5, -5],
-         [ 0,  0,  0],
-         [ 5,  5,  5]]) * 10.0
+         [0, 0, 0],
+         [5, 5, 5]]) * 10.0
     check_m = np.dstack([xx, yy, zz])
 
     # Test
     m = cam.ray_hit_matrix(cam.sensor_plane_ptmtx_3d, res=3)
-    pp(m[:,:,0])
-    assert m.shape == (3, 3, 3) # row, col, len(x,y,z)
+    pp(m[:, :, 0])
+    assert m.shape == (3, 3, 3)  # row, col, len(x,y,z)
     for i in range(3):
-        assert np.allclose(m[:,:,i], check_m[:,:,i], atol=1e-10)
+        assert np.allclose(m[:, :, i], check_m[:, :, i], atol=1e-10)
 
     # Test with higher res
     m = cam.ray_hit_matrix(cam.sensor_plane_ptmtx_3d, res=10)
-    assert m.shape == (10, 10, 3) # row, col, len(x,y,z)
+    assert m.shape == (10, 10, 3)  # row, col, len(x,y,z)
 
 
 def test_ray_hit_plane2():
@@ -666,12 +678,12 @@ def test_ray_hit_plane2():
 
     # 2 x 2 square at y=2
     poly = np.array(
-        [[-1.,   2., -1.],
-         [ 1.,   2., -1.],
-         [ 1.,   2.,  1.],
-         [-1.,   2.,  1.]])
+        [[-1., 2., -1.],
+         [1., 2., -1.],
+         [1., 2., 1.],
+         [-1., 2., 1.]])
     poly_origin = [0, 2, 0]
-    poly_norm=np.array([0, -1, 0])
+    poly_norm = np.array([0, -1, 0])
 
     # Check straight intersection
     ray_pt = np.array([0, 0, 0])
@@ -695,10 +707,10 @@ def test_rayhitpoly():
 
     # 2 x 2 square at y=2
     poly = np.array(
-        [[-1.,   2., -1.],
-         [ 1.,   2., -1.],
-         [ 1.,   2.,  1.],
-         [-1.,   2.,  1.]])
+        [[-1., 2., -1.],
+         [1., 2., -1.],
+         [1., 2., 1.],
+         [-1., 2., 1.]])
     poly_origin = [0, 2, 0]
     poly_norm = np.array([0, -1, 0])
 
@@ -721,7 +733,7 @@ def test_rayhitpoly():
     assert np.allclose(ipt, np.array([0, 2, 0]), atol=1e-10)
 
     # Check hit plane but miss poly bounds
-    ray_dir = np.array([0, 1, 2]) # 63.43 angle should  miss poly
+    ray_dir = np.array([0, 1, 2])  # 63.43 angle should  miss poly
     ipt = Pincam.ray_hit_plane(ray_pt, ray_dir, poly_origin, poly_norm)
     assert ipt is not None
     ipt = Pincam.ray_hit_polygon(ray_pt, ray_dir, poly)
@@ -756,7 +768,6 @@ def test_image_matrix():
     assert img.shape[1] == 120  # col pixel dims
     assert img.shape[2] == 3  # rgb channels
 
-
     # 100 x 100 default
     imgs = cam.image_matrix(ptmtx, inches=10, dpi=10)
 
@@ -769,7 +780,6 @@ def test_image_matrix():
     assert img.shape[0] == 100  # row pixel dims
     assert img.shape[1] == 100  # col pixel dims
     assert img.shape[2] == 3  # rgb channels
-
 
 
 def test_depth_buffer():
@@ -795,7 +805,6 @@ def test_depth_buffer():
     assert len(depths) == 2
     assert np.allclose(depths, test_depths, atol=1e-10)
 
-
     # Test 2
     ptmtx = [poly_back, poly_front]
     test_depths = [0, 1]
@@ -811,7 +820,6 @@ def test_depth_buffer():
     depths, _ = cam.depth_buffer(ptmtx, _depths, res=25)
     assert len(depths) == 2
     assert np.allclose(depths, test_depths, atol=1e-10)
-
 
 
 def test_reorder_depths():

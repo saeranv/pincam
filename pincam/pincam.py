@@ -16,7 +16,7 @@ def p2e(p):
     #w = 10
     #return (p / w)[0:2, :].T
     """
-    w = p[2, :] # row of w = y depth
+    w = p[2, :]  # row of w = y depth
     return (p / w)[0:2, :].T
 
 
@@ -80,15 +80,15 @@ def xform_rotation_matrix(vector_origin, vector_axis, theta):
 
     sina = np.sin(theta)
     cosa = np.cos(theta)
-    vector_axis = vector_axis/np.linalg.norm(vector_axis)
+    vector_axis = vector_axis / np.linalg.norm(vector_axis)
 
     # rotation matrix around unit vector
     R = np.diag([cosa, cosa, cosa])
     R += np.outer(vector_axis, vector_axis) * (1.0 - cosa)
     vector_axis *= sina
-    R += np.array([[ 0.0,         -vector_axis[2],  vector_axis[1]],
-                    [ vector_axis[2], 0.0,          -vector_axis[0]],
-                    [-vector_axis[1], vector_axis[0],  0.0]])
+    R += np.array([[0.0, -vector_axis[2], vector_axis[1]],
+                   [vector_axis[2], 0.0, -vector_axis[0]],
+                   [-vector_axis[1], vector_axis[0], 0.0]])
     M = np.identity(4)
     M[:3, :3] = R
 
@@ -165,7 +165,7 @@ class Pincam(object):
     def sensor_plane_ptmtx_2d(self):
         """Get camera sensor_panel"""
 
-        pw = 50.0  #self.DEFAULT_SENSOR_WORLD_WIDTH
+        pw = 50.0  # self.DEFAULT_SENSOR_WORLD_WIDTH
         return np.array(
             [[-1, -1], [1, -1], [1, 1], [-1, 1], [-1, -1]]) * pw
 
@@ -173,7 +173,7 @@ class Pincam(object):
     def sensor_plane_ptmtx_3d(self):
         """Get camera sensor_panel"""
 
-        pw = 50.0  #self.DEFAULT_SENSOR_WORLD_WIDTH / 2.
+        pw = 50.0  # self.DEFAULT_SENSOR_WORLD_WIDTH / 2.
         return np.array(
             [[-1, 0, -1], [1, 0, -1], [1, 0, 1], [-1, 0, 1], [-1, 0, -1]]) * pw
 
@@ -185,10 +185,10 @@ class Pincam(object):
         """
 
         return np.array([
-            [-1,  0,  0,  0],
-            [ 0,  0,  1,  0],
-            [ 0,  1,  0,  0],
-            [ 0,  0,  0,  1]
+            [-1, 0, 0, 0],
+            [0, 0, 1, 0],
+            [0, 1, 0, 0],
+            [0, 0, 0, 1]
         ])
 
     @staticmethod
@@ -252,11 +252,11 @@ class Pincam(object):
 
         # Sony DSLR A-100
         # Ref: https://en.wikipedia.org/wiki/Sony_Alpha_100
-        #focal_length = 18 # 18 - 70
+        # focal_length = 18 # 18 - 70
         #sensor_width = 23.6
-        #sensor_height = 23.6 #15.6
+        # sensor_height = 23.6 #15.6
         #pixel_num_width = 3872
-        #pixel_num_height = 3872 #2592
+        # pixel_num_height = 3872 #2592
 
         # Assume square aspect ratio for now
         #sensor_world_width = 0.5
@@ -277,16 +277,16 @@ class Pincam(object):
         sensor_pixel_res = Pincam.DEFAULT_PIXEL_RESOLUTION
         sensor_pixel_width = sensor_world_width / sensor_pixel_res
         # Multiply this by world coords to get pixel coords
-        #pixel_conv_factor = sensor_pixel_width #/ sensor_world_width
+        # pixel_conv_factor = sensor_pixel_width #/ sensor_world_width
         px, py = principle_point
-        #Sx = Sy = (flen * pixel_conv_factor) #/ sensor_pixel_width
+        # Sx = Sy = (flen * pixel_conv_factor) #/ sensor_pixel_width
         #Sx = flen / sensor_world_width * sensor_pixel_width
         Sx = (flen * sensor_world_width) * sensor_pixel_width
         Sy = Sx
         K = np.array([
-            [Sx,  0,  px,  0],
-            [ 0, Sy,  py,  0],
-            [ 0,  0,  1,   0]])
+            [Sx, 0, px, 0],
+            [0, Sy, py, 0],
+            [0, 0, 1, 0]])
 
         return K
 
@@ -295,7 +295,7 @@ class Pincam(object):
         """Invert translation in extrinsic matrix"""
 
         # Invert translation is negative vector
-        _Rt = np.eye(4) # Make new matrix to avoid mutations
+        _Rt = np.eye(4)  # Make new matrix to avoid mutations
         t = Rt[:3, 3]
         _Rt[:3, 3] = -t
 
@@ -306,9 +306,9 @@ class Pincam(object):
         """Invert rotation in extrinsic matrix"""
 
         # Invert rotation matrix is it's transpose
-        _Rt = np.eye(4) # Make new matrix to avoid mutations
+        _Rt = np.eye(4)  # Make new matrix to avoid mutations
         R = Rt[:3, :3]
-        _Rt[:3, :3] = R.T # transpose
+        _Rt[:3, :3] = R.T  # transpose
 
         return _Rt
 
@@ -329,13 +329,22 @@ class Pincam(object):
     def projection_matrix(focal_length, heading, pitch, cam_point):
         """
         Transformation matrix which combines rotation along z, x axis, translation.
+
+        Args:
+            focal_length: focal length between 18 and 35 (inclusive).
+            heading: heading in radians.
+            pitch: pitch in radians.
+            cam_point: camera location.
+
+        Return:
+            Projection matrix.
         """
-        Rt = Pincam.extrinsic_matrix(heading, pitch, cam_point)
+        Rt = Pincam.extrinsic_matrix(heading, pitch, cam_point.copy())
         wc = Pincam.world_to_camera_matrix()
         Rtc = np.matmul(wc, Rt)
         K = Pincam.intrinsic_matrix(flen=focal_length)
         R = np.eye(4, 4)
-        R[:3,:3] = Rt[:3,:3]
+        R[:3, :3] = Rt[:3, :3]
 
         return np.matmul(K, Rtc)
 
@@ -345,7 +354,7 @@ class Pincam(object):
         TBD
         """
         ptnums = [np.shape(geometry)[0] for geometry in geometries]
-        idx = np.cumsum(ptnums[:-1]) # list of end index for every geometry
+        idx = np.cumsum(ptnums[:-1])  # list of end index for every geometry
         stacked = np.concatenate(geometries)
 
         return stacked, idx
@@ -364,9 +373,9 @@ class Pincam(object):
         # Construct bbox bottom and top surfaces
         bbox = np.array([
             [[minx, maxy, minz], [maxx, maxy, minz],
-            [maxx, miny, minz], [minx, miny, minz]],
+             [maxx, miny, minz], [minx, miny, minz]],
             [[minx, miny, maxz], [maxx, miny, maxz],
-            [maxx, maxy, maxz], [minx, maxy, maxz]],
+             [maxx, maxy, maxz], [minx, maxy, maxz]],
         ])
 
         return bbox
@@ -455,7 +464,8 @@ class Pincam(object):
 
         # Convert from 2d to 3d world coordinates
         xsurface[:, 2] = w  # Add depth information into 3rd column to make 3d
-        xsurface = np.insert(xsurface, 3, 1, 1)  # n x 4 matrix of homogenous coordinates
+        # n x 4 matrix of homogenous coordinates
+        xsurface = np.insert(xsurface, 3, 1, 1)
         xsurface = np.matmul(Pincam.camera_to_world_matrix(), xsurface.T).T
 
         # 3d ptmtx n x 3 perspective geometry
@@ -480,7 +490,7 @@ class Pincam(object):
         xptmtx = p2e(xptmtx)
 
         # Split and sort by z buffer
-        xgeometries = np.array(np.split(xptmtx, idx))
+        xgeometries = np.split(xptmtx, idx)
 
         return xgeometries, ordered_depths[::-1].tolist()
 
@@ -502,7 +512,7 @@ class Pincam(object):
             np.arange(minb, maxb, step),
             np.arange(minb, maxb, step))
 
-        assert abs((res ** 0.5)** 2 - res) < 1e-10, \
+        assert abs((res ** 0.5) ** 2 - res) < 1e-10, \
             'res must be an integer with integer root. Got {}.'.format(res)
         res += 1
         yy = np.zeros(res * res).reshape((res, res))
@@ -516,8 +526,10 @@ class Pincam(object):
         """
         Ray hits plane .
         """
-        ray_pt, ray_dir = Point3D.from_array(ray_pt), Point3D.from_array(ray_dir)
-        pln_n, pln_o = Vector3D.from_array(plane_normal), Point3D.from_array(plane_origin)
+        ray_pt, ray_dir = Point3D.from_array(
+            ray_pt), Point3D.from_array(ray_dir)
+        pln_n, pln_o = Vector3D.from_array(
+            plane_normal), Point3D.from_array(plane_origin)
 
         # Make geometries
         ray = Ray3D(ray_pt, ray_dir)
@@ -625,10 +637,12 @@ class Pincam(object):
                     min_geo = depth_buffer[i, j, 1]
 
                     if min_depth < 0:
-                        depth_buffer[i, j, :] = [cur_depth, cur_geo, cur_geo+2]
+                        depth_buffer[i, j, :] = [
+                            cur_depth, cur_geo, cur_geo + 2]
                     elif cur_depth < min_depth:
                         depth_buffer[i, j, :] = [cur_depth, cur_geo, 9]
-                        depth_idx = Pincam.reorder_depths(depth_idx, cur_geo, min_geo)
+                        depth_idx = Pincam.reorder_depths(
+                            depth_idx, cur_geo, min_geo)
 
         return depth_idx[::-1], depth_buffer
 
@@ -755,7 +769,7 @@ if __name__ == "__main__":
     # For profiling:
     #  python -m cProfile -s time pincam/pincam.py >> profile.txt
     # 13.105 seconds (raw)
-    r = lambda d: d / 180.0 * np.pi
+    def r(d): return d / 180.0 * np.pi
 
     # Define surfaces
     bot_srf = np.array(
@@ -778,4 +792,3 @@ if __name__ == "__main__":
     res = 64
     xptmtx, _depths = cam.project(cam.P, ptmtx)
     depths, db = cam.depth_buffer(ptmtx, _depths, res=res)
-
