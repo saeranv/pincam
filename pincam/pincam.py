@@ -761,7 +761,7 @@ class Pincam(object):
         """
         xptmtx, _depths = Pincam.project(self.P, ptmtx)
         depths, _ = self.depth_buffer(ptmtx, _depths, res=res)
-        xptmtx = xptmtx[depths]
+        xptmtx = [xptmtx[d] for d in depths]
         return [shapely_from_srf3d(np.array(srf)) for srf in xptmtx]
 
 
