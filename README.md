@@ -1,13 +1,20 @@
-## pincam-simple
-A simple pinhole camera library developed in Numpy, used mainly for educational purposes. 
+## Pincam
+A simple pinhole camera library in Python. 
 
-It computes a camera projection matrix to transform 3D geometries to 2D geometries, and incorporates a simple raycasting method to resolve depth order for overlapping geometries. Visualization is then achieved using geopandas.
+Pincam computes a camera projection matrix that projects 3D geometries onto a defined camera image plane. It incorporates a simple raycasting method to resolve depth order for geometries relative to the image plane. The geometries are stored in a geopandas DataFrame, which facilitates easy plotting and customization of the geometries for further visualization and analysis. 
 
-The "simple" in pincam-simple refers to the implementation of the raycasting method, which is done manually using Numpy and for loops and is thus extremely slow. This is why this repo's main purpose is to explore how camera projection works.
+For example, here's a simple analysis I did at work with Pincam and geopandas to calculate surface solar insolation:
 
-### Example
-Snapshot of three surfaces (with some complicated overlapping):
-![x](/resources/imgs/box_example.PNG "x")
+![x](/resources/imgs/solar_analysis.png "x")
 
-Using pincam to illustrate the transformation (or squishing) of 3D geometries in the camera view frustum:
+Note, that while the camera projection library scales well, the raycasting method to resolve depth order doesn’t. A more robust 3D visualization framework is thus recommended for complex visualization. Pincam is really more of a toy library.   
+
+### Examples
+An example project showing the visualization of three surfaces with a heading and pitch of 15 degrees, and focal length of 25 mm:
+![x](/resources/imgs/box_example_2.PNG "x")
+
+Using Pincam to show how camera projection works, here we see how 3D geometries are scaled by depth within the camera view frustum:
 ![x](/resources/imgs/view_frustrum.png "x")
+
+These examples can be seen in the quickstart.ipynb and view_frustrum.ipynb notebooks, in the notebooks directory. 
+
