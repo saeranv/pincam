@@ -9,14 +9,16 @@ import matplotlib.pyplot as plt
 from shapely import geometry
 
 
-def p2e(p):
+def p2e(p, ortho=False):
     """Matrix of projective to euclidian.
 
     For ortho:
     #w = 10
     #return (p / w)[0:2, :].T
     """
-    w = p[2, :]  # row of w = y depth
+    w = 1.0
+    if not ortho:
+        w = p[2, :]  # row of w = y depth
     return (p / w)[0:2, :].T
 
 
@@ -99,11 +101,6 @@ def xform_rotation_matrix(vector_origin, vector_axis, theta):
     return M
 
 
-def shapely_from_srf3d(srf):
-    """ Srf cab be 3dm shapely init will automatically remove extra dims"""
-    return geometry.Polygon(srf[:, :2])
-
-
 class Pincam(object):
     """Lightweight pinhole camera.
 
@@ -176,6 +173,12 @@ class Pincam(object):
         pw = 50.0  # self.DEFAULT_SENSOR_WORLD_WIDTH / 2.
         return np.array(
             [[-1, 0, -1], [1, 0, -1], [1, 0, 1], [-1, 0, 1], [-1, 0, -1]]) * pw
+
+    @staticmethod
+    def to_poly_sh(poly_np):
+        """ Srf cab be 3dm shapely init will automatically remove extra dims"""
+        return geometry.Polygon(poly_np[:, :2])
+
 
     @staticmethod
     def world_to_camera_matrix():
@@ -472,7 +475,7 @@ class Pincam(object):
         return xsurface[:, :3]
 
     @staticmethod
-    def project(P, geometries):
+    def project(P, geometries, ortho=False, depth_by_mean=True):
         """
         TBD
         """
@@ -484,15 +487,21 @@ class Pincam(object):
         ptmtx = e2p(ptmtx)
         xptmtx = np.matmul(P, ptmtx)
 
-        furthest_depths = [np.min(warr) for warr in np.split(xptmtx[2], idx)]
+        if depth_by_mean:
+            depth_select_fx = lambda w: np.mean(w)
+        else:
+            depth_select_fx = lambda w: np.min(w)
+
+        furthest_depths = [depth_select_fx(warr) for warr in np.split(xptmtx[2], idx)]
 
         ordered_depths = np.argsort(furthest_depths)
-        xptmtx = p2e(xptmtx)
+        xptmtx = p2e(xptmtx, ortho=ortho)
 
         # Split and sort by z buffer
         xgeometries = np.split(xptmtx, idx)
 
         return xgeometries, ordered_depths[::-1].tolist()
+
 
     @staticmethod
     def ray_hit_matrix(sensor_plane_3d, res=10):
@@ -613,7 +622,6 @@ class Pincam(object):
 
         # Build two matrices of geometries for analyis, one 3d, one pixels
         geos = self.view_frustum_geometry2(ptmtx, show_cam=False)
-        #geos = np.array(geos)
 
         # Get geos closest to camera
         depth_idx = default_depths[:]
@@ -762,7 +770,7 @@ class Pincam(object):
         xptmtx, _depths = Pincam.project(self.P, ptmtx)
         depths, _ = self.depth_buffer(ptmtx, _depths, res=res)
         xptmtx = [xptmtx[d] for d in depths]
-        return [shapely_from_srf3d(np.array(srf)) for srf in xptmtx]
+        return [Pincam.to_poly_sh(srf) for srf in xptmtx]
 
 
 if __name__ == "__main__":

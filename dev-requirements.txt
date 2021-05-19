@@ -19,7 +19,7 @@ numpy==1.18.1
 packaging==20.3
 pandas==1.0.3
 pluggy==0.13.1
-py==1.8.1
+py>=1.10.0
 pyparsing==2.4.7
 pyproj==1.9.6
 pytest==5.4.2
