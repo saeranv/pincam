@@ -7,6 +7,8 @@ For example, here's a simple analysis I did at work with Pincam and geopandas to
 
 ![x](/resources/imgs/solar_analysis.png "x")
 
+Check out DeepRad at https://github.com/saeranv/DeepRad to see another example of pincam in use.
+
 ### Examples
 An example project showing the visualization of three surfaces with a heading and pitch of 15 degrees, and focal length of 25 mm:
 ![x](/resources/imgs/box_example_2.PNG "x")
