@@ -3,7 +3,7 @@ A simple pinhole camera library in Python.
 
 Pincam computes a camera projection matrix that projects 3D geometries onto a defined camera image plane. It incorporates a simple raycasting method to resolve depth order for geometries relative to the image plane. The geometries are stored in a geopandas DataFrame, which facilitates easy plotting and customization of the geometries for further visualization and analysis.
 
-For example, here's a radiation analysis visualized with Pincam for one of my projects ([DeepRad](https://github.com/saeranv/DeepRad), a deep learning framework for building radiation prediction). The first row illustrates simulation results mapped onto building geometry, and the second row illustrates predicted results.  
+For example, here's a radiation analysis visualized with Pincam for one of my projects ([DeepRad](https://github.com/saeranv/DeepRad), a deep learning framework for building radiation prediction). The initial rows illustrates input geometries, and the final row illustrates the surface simulation results.  
 
 ![x](/resources/imgs/in_out.PNG "x")
 ![x](/resources/imgs/in_out2.PNG "x")
