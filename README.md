@@ -3,11 +3,10 @@ A simple pinhole camera library in Python.
 
 Pincam computes a camera projection matrix that projects 3D geometries onto a defined camera image plane. It incorporates a simple raycasting method to resolve depth order for geometries relative to the image plane. The geometries are stored in a geopandas DataFrame, which facilitates easy plotting and customization of the geometries for further visualization and analysis.
 
-For example, here's a simple analysis I did at work with Pincam and geopandas to calculate surface solar insolation:
+For example, here's a radiation analysis visualized with Pincam for one of my projects ([DeepRad](https://github.com/saeranv/DeepRad), a deep learning framework for building radiation prediction). The first row illustrates simulation results mapped onto building geometry, and the second row illustrates predicted results.  
 
-![x](/resources/imgs/solar_analysis.png "x")
-
-Check out DeepRad at https://github.com/saeranv/DeepRad to see another example of pincam in use.
+![x](/resources/imgs/in_out.png "x")
+![x](/resources/imgs/in_out2.png "x")
 
 ### Examples
 An example project showing the visualization of three surfaces with a heading and pitch of 15 degrees, and focal length of 25 mm:
