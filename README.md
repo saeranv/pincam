@@ -5,8 +5,8 @@ Pincam computes a camera projection matrix that projects 3D geometries onto a de
 
 For example, here's a radiation analysis visualized with Pincam for one of my projects ([DeepRad](https://github.com/saeranv/DeepRad), a deep learning framework for building radiation prediction). The first row illustrates simulation results mapped onto building geometry, and the second row illustrates predicted results.  
 
-![x](/resources/imgs/in_out.png "x")
-![x](/resources/imgs/in_out2.png "x")
+![x](/resources/imgs/in_out.PNG "x")
+![x](/resources/imgs/in_out2.PNG "x")
 
 ### Examples
 An example project showing the visualization of three surfaces with a heading and pitch of 15 degrees, and focal length of 25 mm:
