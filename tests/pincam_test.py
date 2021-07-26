@@ -4,9 +4,8 @@ import json
 from pprint import pprint as pp
 
 import numpy as np
-from pincam import Pincam
-from pincam.matrix_utils2 import MatrixUtils2 as mu
-cam = Pincam
+import pincam
+Pincam = pincam.Pincam
 
 
 def r(d):
@@ -81,7 +80,7 @@ def test_rotation_transform():
     origin = np.array([0, 0, 0])
     axis = np.array([1, 0, 0])
     theta = r(90.0)
-    chkmtx = mu.xform_rotation_matrix(origin, axis, theta)
+    chkmtx = pincam.xform_rotation_matrix(origin, axis, theta)
     assert np.allclose(chkmtx, ref_rmtxX, 1e-10)
 
     # Rotation around z acis by 180
@@ -94,7 +93,7 @@ def test_rotation_transform():
 
     axis = np.array([0, 0, 1])
     theta = r(180)
-    chkmtx = mu.xform_rotation_matrix(origin, axis, theta)
+    chkmtx = pincam.xform_rotation_matrix(origin, axis, theta)
     assert np.allclose(chkmtx, ref_rmtxZ, 1e-10)
 
 
@@ -118,7 +117,7 @@ def test_world_to_camera_transform():
     ])
 
     # Test
-    cammtx = cam.world_to_camera_matrix()
+    cammtx = Pincam.world_to_camera_matrix()
     # For points, remember to transpose to points into columns
     xpts = np.matmul(cammtx, points.T).T
 
@@ -145,7 +144,7 @@ def test_camera_to_world_transform():
     ])
 
     # Test
-    worldmtx = cam.camera_to_world_matrix()
+    worldmtx =Pincam.camera_to_world_matrix()
     # For points, remember to transpose to points into columns
     xpts = np.matmul(worldmtx, cam_points.T).T
 
@@ -210,7 +209,7 @@ def test_extrinsic_matrix():
     heading = 0.0
     pitch = np.pi / 4.
     cam_posn = np.array([0, 0, 5])
-    Rt = cam.extrinsic_matrix(heading, pitch, cam_posn)
+    Rt =Pincam.extrinsic_matrix(heading, pitch, cam_posn)
 
     v = 0.7071067811865476  # sin(45) and cos(45)
     chk_Rt = np.array([
@@ -222,7 +221,7 @@ def test_extrinsic_matrix():
     assert np.allclose(Rt, chk_Rt, atol=1e-5)
 
     # Test world to camera transform
-    wc = cam.world_to_camera_matrix()
+    wc =Pincam.world_to_camera_matrix()
     Rtc = np.matmul(wc, Rt)
     chk_Rtc = np.array([
         [-1, 0, 0, 0],
@@ -251,7 +250,7 @@ def test_intrinsic_matrix():
         [0, S, c, 0],
         [0, 0, 1, 0]])
 
-    chk_K = cam.intrinsic_matrix(flen=flen, principle_point=(0, 0))
+    chk_K = Pincam.intrinsic_matrix(flen=flen, principle_point=(0, 0))
 
     assert np.allclose(K, chk_K, atol=1e-5)
 
@@ -306,7 +305,7 @@ def test_zbuffer():
     heading = 0
     pitch = 45
     cam_posn = np.array([0, -5, 10])
-    P = cam.projection_matrix(flen, heading, pitch, cam_posn)
+    P = Pincam.projection_matrix(flen, heading, pitch, cam_posn)
 
     # Test ordering of points in center
     seg_center = np.array([
@@ -365,7 +364,7 @@ def test_bounding_box():
          [10, 12, 20], [-10, 12, 20]]
     ])
 
-    bbox = cam._bounding_box(ptmtx)
+    bbox = Pincam._bounding_box(ptmtx)
 
     assert np.allclose(bbox, chk_bbox, atol=1e-10)
 
@@ -376,7 +375,7 @@ def test_single_plane_bounding_box():
         [[-4, 0, 0], [4, 0, 0], [4, 0, 6], [-4, 0, 6]]
     )
 
-    bot, top = cam._bounding_box(ptmtx)
+    bot, top = Pincam._bounding_box(ptmtx)
 
     # Single line
     chkbot = np.array(
@@ -406,10 +405,10 @@ def test_surface_normal():
     srf2 = srf1[::-1]
 
     assert np.allclose(
-        [0, 0, 1], cam._surface_normal(srf1))
+        [0, 0, 1], Pincam._surface_normal(srf1))
 
     assert np.allclose(
-        [0, 0, -1], cam._surface_normal(srf2))
+        [0, 0, -1], Pincam._surface_normal(srf2))
 
 
 def test_simple_view_factor():
@@ -422,14 +421,14 @@ def test_simple_view_factor():
     heading = 0
     pitch = 0
     cam_posn = np.array([0, -10, 5])
-    P = cam.projection_matrix(flen, heading, pitch, cam_posn.copy())
+    P = Pincam.projection_matrix(flen, heading, pitch, cam_posn.copy())
 
-    view_factor = cam.view_factor(P, srf) > 0.0
-    assert cam._surface_normal(srf)[1] < 0.0
+    view_factor = Pincam.view_factor(P, srf) > 0.0
+    assert Pincam._surface_normal(srf)[1] < 0.0
     assert view_factor
 
-    view_factor = cam.view_factor(P, srf[::-1]) > 0.0
-    assert cam._surface_normal(srf[::-1])[1] > 0.0
+    view_factor = Pincam.view_factor(P, srf[::-1]) > 0.0
+    assert Pincam._surface_normal(srf[::-1])[1] > 0.0
     assert not view_factor
 
     # Test view of simple horizontal plane with no rotation
@@ -441,15 +440,15 @@ def test_simple_view_factor():
     heading = 0
     pitch = 0
     cam_posn = np.array([0, -10, 5])
-    P = cam.projection_matrix(flen, heading, pitch, cam_posn.copy())
+    P = Pincam.projection_matrix(flen, heading, pitch, cam_posn.copy())
 
     # Should be exactly perpendicular
-    view_factor = cam.view_factor(P, srf) > 0.0
-    assert cam._surface_normal(srf)[2] > 0.0
+    view_factor = Pincam.view_factor(P, srf) > 0.0
+    assert Pincam._surface_normal(srf)[2] > 0.0
     assert view_factor
 
-    view_factor = cam.view_factor(P, srf[::-1]) > 0.0
-    assert cam._surface_normal(srf[::-1])[2] < 0.0
+    view_factor = Pincam.view_factor(P, srf[::-1]) > 0.0
+    assert Pincam._surface_normal(srf[::-1])[2] < 0.0
     assert not view_factor
 
 
@@ -468,45 +467,45 @@ def test_complex_view_factor():
     heading = r(45)
     pitch = r(-10)
     cam_posn = np.array([0, -15, 7])
-    P = cam.projection_matrix(flen, heading, pitch, cam_posn.copy())
+    P = Pincam.projection_matrix(flen, heading, pitch, cam_posn.copy())
 
-    view_factor = cam.view_factor(P, bot_srf) > 0.0
+    view_factor = Pincam.view_factor(P, bot_srf) > 0.0
     assert view_factor
 
-    view_factor = cam.view_factor(P, bot_srf[::-1]) > 0.0
+    view_factor = Pincam.view_factor(P, bot_srf[::-1]) > 0.0
     assert not view_factor
 
     # Look at top surface
-    view_factor = cam.view_factor(P, top_srf) > 0.0
+    view_factor = Pincam.view_factor(P, top_srf) > 0.0
     assert not view_factor
 
-    view_factor = cam.view_factor(P, top_srf[::-1]) > 0.0
+    view_factor = Pincam.view_factor(P, top_srf[::-1]) > 0.0
     assert view_factor
 
     # Look at underside of bottom surface
     pitch = r(-55)
-    P = cam.projection_matrix(flen, heading, pitch, cam_posn.copy())
+    P = Pincam.projection_matrix(flen, heading, pitch, cam_posn.copy())
 
-    view_factor = cam.view_factor(P, bot_srf) > 0.0
+    view_factor = Pincam.view_factor(P, bot_srf) > 0.0
     assert not view_factor
 
-    view_factor = cam.view_factor(P, bot_srf[::-1]) > 0.0
+    view_factor = Pincam.view_factor(P, bot_srf[::-1]) > 0.0
     assert view_factor
 
     # P matrix see inner face of bottom and top faces
     pitch = r(35)
-    P = cam.projection_matrix(flen, heading, pitch, cam_posn.copy())
+    P = Pincam.projection_matrix(flen, heading, pitch, cam_posn.copy())
 
-    view_factor = cam.view_factor(P, bot_srf) > 0.0
+    view_factor = Pincam.view_factor(P, bot_srf) > 0.0
     assert view_factor
 
-    view_factor = cam.view_factor(P, bot_srf[::-1]) > 0.0
+    view_factor = Pincam.view_factor(P, bot_srf[::-1]) > 0.0
     assert not view_factor
 
-    view_factor = cam.view_factor(P, top_srf) > 0.0
+    view_factor = Pincam.view_factor(P, top_srf) > 0.0
     assert view_factor
 
-    view_factor = cam.view_factor(P, top_srf[::-1]) > 0.0
+    view_factor = Pincam.view_factor(P, top_srf[::-1]) > 0.0
     assert not view_factor
 
 
@@ -530,7 +529,7 @@ def test_simple_snapshot():
 
     # Ignore order for now.
     cam = Pincam(cam_point, heading, pitch, focal_len)
-    xgeoms, depths = cam.project(cam.P, geoms)
+    xgeoms, depths = Pincam.project(cam.P, geoms)
 
     # Define the xgeoms. Not ordered
     fpath = os.path.join('tests', 'fixtures', 'simple_snapshot_surfaces.json')
@@ -608,10 +607,10 @@ def test_project_camera_sensor_geometry():
     cam = Pincam(cam_point, heading, pitch, focal_length)
 
     # Get inverted extrinsic matrix
-    iRt = cam.invert_extrinsic_matrix(cam.Rt)
+    iRt = Pincam.invert_extrinsic_matrix(cam.Rt)
 
     # Make camera points
-    cam_pts = Pincam.project_camera_sensor_geometry(
+    cam_pts = cam.project_camera_sensor_geometry(
         iRt, cam.sensor_plane_ptmtx_3d)
     test_cam_pts = np.array(
         [[-50., -52.99875777, -41.42621966],
@@ -635,7 +634,7 @@ def test_raymtx():
     cam = Pincam(cam_point, heading, pitch, focal_length)
 
     # Get and Rt camera sensor geometry
-    plane = cam.sensor_plane_ptmtx_3d
+    plane = Pincam.sensor_plane_ptmtx_3d
     # plane:
     # [[-50.,   0., -50.],
     #  [ 50.,   0., -50.],
@@ -658,13 +657,13 @@ def test_raymtx():
     check_m = np.dstack([xx, yy, zz])
 
     # Test
-    m = cam.ray_hit_matrix(cam.sensor_plane_ptmtx_3d, res=2)
+    m = Pincam.ray_hit_matrix(cam.sensor_plane_ptmtx_3d, res=2)
     assert m.shape == (2, 2, 3)  # row, col, len(x,y,z)
     for i in range(3):
         assert np.allclose(m[:, :, i], check_m[:, :, i], atol=1e-10)
 
     # Test with higher res
-    m = cam.ray_hit_matrix(cam.sensor_plane_ptmtx_3d, res=9)
+    m = Pincam.ray_hit_matrix(cam.sensor_plane_ptmtx_3d, res=9)
     assert m.shape == (9, 9, 3)  # row, col, len(x,y,z)
 
 
@@ -795,7 +794,7 @@ def test_depth_buffer():
     # Test
     ptmtx = [poly_front, poly_back]
     test_depths = [1, 0]
-    _, _depths = cam.project(cam.P, ptmtx)
+    _, _depths = Pincam.project(cam.P, ptmtx)
     depths, _ = cam.depth_buffer(ptmtx, _depths, res=25)
     assert len(depths) == 2
     assert np.allclose(depths, test_depths, atol=1e-10)
@@ -803,7 +802,7 @@ def test_depth_buffer():
     # Test 2
     ptmtx = [poly_back, poly_front]
     test_depths = [0, 1]
-    _, _depths = cam.project(cam.P, ptmtx)
+    _, _depths = Pincam.project(cam.P, ptmtx)
     depths, _ = cam.depth_buffer(ptmtx, _depths, res=25)
     assert len(depths) == 2
     assert np.allclose(depths, test_depths, atol=1e-10)
