@@ -1,104 +1,12 @@
 import numpy as np
-#from .matrix_utils2 import MatrixUtils2 as mu
 from ladybug_geometry.geometry3d import Point3D, Vector3D, Ray3D, Plane, Face3D
 from ladybug_geometry.geometry2d import Point2D
 from pprint import pprint as pp
 import geopandas as gpd
-import cv2
 import matplotlib.pyplot as plt
 from shapely import geometry
-
-
-def p2e(p, ortho=False):
-    """Matrix of projective to euclidian.
-
-    For ortho:
-    #w = 10
-    #return (p / w)[0:2, :].T
-    """
-    w = 1.0
-    if not ortho:
-        w = p[2, :]  # row of w = y depth
-    return (p / w)[0:2, :].T
-
-
-def e2p(e):
-    """Matrix of euclidean to projective
-    Converts to column vectors
-    """
-    return np.insert(e, 3, 1, 1).T
-
-
-def matmul_xforms(xforms):
-    """Multiply multiply transfromation matrices together.
-
-    This method multiplies matrices in correct post-order multiplication.
-    That is matrices are multiplied from left to right.
-
-    For example, for a typical rigid transformation where it is desired to
-    multiply rotation around Z axis, rotation around X, and translation, the
-    method does the following:
-
-    xforms: [RZ1, RX2, T1]
-    P = T1(RX2(RZ1))
-
-    Args:
-        list_of_matrices: list of matrices in sequential order.
-
-    Returns:
-        Single matrix.
-    """
-    m = xforms[0]
-    for xf in xforms[1:]:
-        m = np.matmul(xf, m)
-    return m
-
-
-def xform_translation_matrix(move_vector):
-    """
-    Modified from Christopher Gohlke
-    https://www.lfd.uci.edu/~gohlke/code/transformations.py.html
-
-    :param move_vector: 3 x 1 direction vector
-    :return: 4 x 4 translation matrix
-    [[1, 0, 0, move_vector[0]],
-    [0, 1, 0, move_vector[1]],
-    [0, 0, 1, move_vector[2]],
-    [0, 0, 0, 1.0]]
-    """
-    m = np.identity(4)
-    m[:3, 3] = move_vector[:3]
-    return m
-
-
-def xform_rotation_matrix(vector_origin, vector_axis, theta):
-    """
-    Modified from Christopher Gohlke
-    https://www.lfd.uci.edu/~gohlke/code/transformations.py.html
-    Return ndarray normalized by length, i.e. Euclidean norm, along axis.
-
-    If this doesn't work, go back to Rodriguez rotation method in matrixutils.
-    """
-
-    sina = np.sin(theta)
-    cosa = np.cos(theta)
-    vector_axis = vector_axis / np.linalg.norm(vector_axis)
-
-    # rotation matrix around unit vector
-    R = np.diag([cosa, cosa, cosa])
-    R += np.outer(vector_axis, vector_axis) * (1.0 - cosa)
-    vector_axis *= sina
-    R += np.array([[0.0, -vector_axis[2], vector_axis[1]],
-                   [vector_axis[2], 0.0, -vector_axis[0]],
-                   [-vector_axis[1], vector_axis[0], 0.0]])
-    M = np.identity(4)
-    M[:3, :3] = R
-
-    if vector_origin is not None:
-        # rotation not around origin
-        M[:3, 3] = vector_origin - np.dot(R, vector_origin)
-
-    return M
+from .matrix import xform_rotation_matrix, xform_translation_matrix, matmul_xforms
+from PIL import Image
 
 
 class Pincam(object):
@@ -173,6 +81,27 @@ class Pincam(object):
         pw = 50.0  # self.DEFAULT_SENSOR_WORLD_WIDTH / 2.
         return np.array(
             [[-1, 0, -1], [1, 0, -1], [1, 0, 1], [-1, 0, 1], [-1, 0, -1]]) * pw
+
+    @staticmethod
+    def p2e(p, ortho=False):
+        """Matrix of projective to euclidian.
+
+        For ortho:
+        #w = 10
+        #return (p / w)[0:2, :].T
+        """
+        w = 1.0
+        if not ortho:
+            w = p[2, :]  # row of w = y depth
+        return (p / w)[0:2, :].T
+
+    @staticmethod
+    def e2p(e):
+        """Matrix of euclidean to projective
+        Converts to column vectors
+        """
+        return np.insert(e, 3, 1, 1).T
+
 
     @staticmethod
     def to_poly_sh(poly_np):
@@ -459,7 +388,7 @@ class Pincam(object):
         """
         # 3d ptmtx n x 3 ortho geometry
         # Affine transformation of 3d surface to 2d planar projection
-        xsurface = np.matmul(P, e2p(surface))  # n x 4 matrix
+        xsurface = np.matmul(P, Pincam.e2p(surface))  # n x 4 matrix
 
         # Dividing x, y by depth shrinks surface proportional to depth in view frustum
         w = xsurface[2, :]  # Column vector of depths
@@ -484,7 +413,7 @@ class Pincam(object):
         ptmtx, idx = Pincam.stack(geometries)
 
         # MuLtiply geometries by P matrix
-        ptmtx = e2p(ptmtx)
+        ptmtx = Pincam.e2p(ptmtx)
         xptmtx = np.matmul(P, ptmtx)
 
         if depth_by_mean:
@@ -495,7 +424,7 @@ class Pincam(object):
         furthest_depths = [depth_select_fx(warr) for warr in np.split(xptmtx[2], idx)]
 
         ordered_depths = np.argsort(furthest_depths)
-        xptmtx = p2e(xptmtx, ortho=ortho)
+        xptmtx = Pincam.p2e(xptmtx, ortho=ortho)
 
         # Split and sort by z buffer
         xgeometries = np.split(xptmtx, idx)
@@ -746,10 +675,16 @@ class Pincam(object):
             ax.axis(False)
             ax = df.iloc[i:i + 1].plot(
                 edgecolor='black', facecolor='lightblue', lw=5, ax=ax)
-            plt.savefig('tmp_{}.png'.format(i), dpi=dpi)
 
-            # Read in as array
-            img = cv2.imread('tmp_{}.png'.format(i), cv2.IMREAD_COLOR)
+            # FIXME: check
+            #fig.canvas.draw()
+            #img = Image.frombytes(
+            #    'RGB', fig.canvas.get_width_height(),fig.canvas.tostring_rgb())
+            #img = np.array(img)
+
+            fname = 'tmp_{}.png'.format(i)
+            plt.savefig(fname, dpi=dpi)
+            img = plt.imread(fname)[:,:,:3]
 
             # Reorder stacks to RGB colors
             b, g, r = np.moveaxis(img, 2, 0)

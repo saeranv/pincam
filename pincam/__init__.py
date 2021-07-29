@@ -1,4 +1,4 @@
 """pincam"""
 
 from .pincam import Pincam
-from .pincam import xform_rotation_matrix, xform_translation_matrix
+from .matrix import xform_rotation_matrix, xform_translation_matrix, matmul_xforms
