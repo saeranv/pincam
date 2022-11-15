@@ -2,10 +2,11 @@ import numpy as np
 from ladybug_geometry.geometry3d import Point3D, Vector3D, Ray3D, Plane, Face3D
 from ladybug_geometry.geometry2d import Point2D
 from pprint import pprint as pp
-import geopandas as gpd
+# import geopandas as gpd
 import matplotlib.pyplot as plt
 from shapely import geometry
-from .matrix import xform_rotation_matrix, xform_translation_matrix, matmul_xforms
+from .matrix import (xform_rotation_matrix, xform_translation_matrix,
+                     matmul_xforms)
 from PIL import Image
 
 
@@ -100,6 +101,7 @@ class Pincam(object):
         """Matrix of euclidean to projective
         Converts to column vectors
         """
+        # numpy.insert(arr, obj, values, axis=None)
         return np.insert(e, 3, 1, 1).T
 
 
@@ -543,6 +545,11 @@ class Pincam(object):
     def depth_buffer(self, ptmtx, default_depths, res=64):
         """Build the depth buffer."""
 
+        chk_col = np.array([p.shape for p in ptmtx])
+        assert np.all(chk_col[:, 1] == 3), "Input ptmtx must be array of 3d points, " \
+            "got shapes: {}.\n".format(chk_col.tolist()) + "Are you sure you didn't " \
+            "input the transformed ptmtx by accident?"
+
         default_depths = default_depths[::-1]  # closest geos first
 
         # Matrix of ray points to compute ray hit
@@ -665,7 +672,11 @@ class Pincam(object):
         """
 
         shapes = self.to_gpd_geometry(ptmtx)
-        df = gpd.GeoDataFrame({'geometry': shapes})
+
+        try:
+            df = gpd.GeoDataFrame({'geometry': shapes})
+        except:
+            print("TODO: Add actual error here - SV.")
 
         # Generate 2d matrices
         for i in range(len(shapes)):
@@ -735,3 +746,5 @@ if __name__ == "__main__":
     res = 64
     xptmtx, _depths = cam.project(cam.P, ptmtx)
     depths, db = cam.depth_buffer(ptmtx, _depths, res=res)
+    xptmtx = [xptmtx[d] for d in depths]
+    out = [Pincam.to_poly_sh(srf) for srf in xptmtx]
